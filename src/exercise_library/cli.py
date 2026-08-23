@@ -5,9 +5,9 @@ import subprocess
 import sys
 import tempfile
 
+from exercise_library.application import ExerciseApplication
 from exercise_library.config import APP_NAME
 from exercise_library.database import initialize
-from exercise_library.models import Exercise
 from exercise_library.repository import ExerciseRepository
 
 
@@ -24,7 +24,10 @@ def edit_in_editor(field_name: str) -> str:
     )
 
     with tempfile.NamedTemporaryFile(
-        mode="w+", suffix=".md", delete=False, encoding="utf-8"
+        mode="w+",
+        suffix=".md",
+        delete=False,
+        encoding="utf-8",
     ) as tf:
         tf.write(initial_content)
         tf_name = tf.name
@@ -40,22 +43,26 @@ def edit_in_editor(field_name: str) -> str:
 
         lines = content.splitlines(keepends=True)
 
-        # Filter out HTML comment lines
+        # Filter out generated HTML comment lines.
         content = "".join(
             line for line in lines if not line.strip().startswith(f"<!-- [{APP_NAME}]:")
         ).strip()
+
         return content
 
     except subprocess.CalledProcessError:
         print("Error: Editor exited with a non-zero status.")
         return ""
+
     finally:
         if os.path.exists(tf_name):
             os.unlink(tf_name)
 
 
 def create_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Manage your exercise library.")
+    parser = argparse.ArgumentParser(
+        description="Manage your exercise library.",
+    )
 
     subparsers = parser.add_subparsers(
         dest="command",
@@ -66,16 +73,19 @@ def create_parser() -> argparse.ArgumentParser:
         "add",
         help="Add a new exercise",
     )
+
     add_parser.add_argument(
         "prompt",
         nargs="?",
         help="The exercise prompt",
     )
+
     add_parser.add_argument(
         "answer",
         nargs="?",
         help="The exercise answer",
     )
+
     add_parser.add_argument(
         "-i",
         "--interactive",
@@ -95,7 +105,7 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     browse_parser.add_argument(
-        "-i",
+        "-I",
         "--identifier",
         help="Browse exercises under this identifier prefix",
     )
@@ -103,7 +113,10 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def add_exercise(repo: ExerciseRepository, args: argparse.Namespace) -> None:
+def add_exercise(
+    application: ExerciseApplication,
+    args: argparse.Namespace,
+) -> None:
     if args.interactive:
         print("Opening editor for prompt...")
         prompt = edit_in_editor("prompt")
@@ -112,6 +125,7 @@ def add_exercise(repo: ExerciseRepository, args: argparse.Namespace) -> None:
         answer = edit_in_editor("answer")
 
         identifier = args.identifier
+
         if identifier is None:
             identifier = input("Identifier (optional): ").strip() or None
 
@@ -130,22 +144,24 @@ def add_exercise(repo: ExerciseRepository, args: argparse.Namespace) -> None:
         print("Error: Prompt and answer cannot be empty.")
         sys.exit(1)
 
-    exercise = Exercise(
-        prompt=prompt,
-        answer=answer,
-        identifier=identifier,
-    )
-
-    exercise_id = repo.add(exercise)
+    try:
+        exercise_id = application.add_exercise(
+            prompt=prompt,
+            answer=answer,
+            identifier=identifier,
+        )
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        sys.exit(1)
 
     print(f"\nSuccessfully added exercise with ID {exercise_id}")
 
 
 def browse_exercises(
-    repo: ExerciseRepository,
+    application: ExerciseApplication,
     identifier: str | None,
 ) -> None:
-    exercises = repo.browse(identifier)
+    exercises = application.browse_exercises(identifier)
 
     if not exercises:
         print("No exercises found.")
@@ -167,9 +183,10 @@ def main() -> None:
     args = parser.parse_args()
 
     connection = initialize()
-    repo = ExerciseRepository(connection)
+    repository = ExerciseRepository(connection)
+    application = ExerciseApplication(repository)
 
     if args.command == "add":
-        add_exercise(repo, args)
+        add_exercise(application, args)
     elif args.command == "browse":
-        browse_exercises(repo, args.identifier)
+        browse_exercises(application, args.identifier)
