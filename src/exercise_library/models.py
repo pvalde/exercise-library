@@ -5,4 +5,5 @@ from dataclasses import dataclass
 class Exercise:
     prompt: str
     answer: str
+    identifier: str | None = None
     id: int | None = None

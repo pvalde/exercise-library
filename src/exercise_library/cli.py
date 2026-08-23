@@ -83,6 +83,12 @@ def create_parser() -> argparse.ArgumentParser:
         help="Open markdown editor for prompt and answer",
     )
 
+    add_parser.add_argument(
+        "-I",
+        "--identifier",
+        help="Optional identifier for the exercise",
+    )
+
     subparsers.add_parser(
         "list",
         help="List all exercises",
@@ -99,6 +105,10 @@ def add_exercise(repo: ExerciseRepository, args: argparse.Namespace) -> None:
         print("Opening editor for answer...")
         answer = edit_in_editor("answer")
 
+        identifier = args.identifier
+        if identifier is None:
+            identifier = input("Identifier (optional): ").strip() or None
+
     else:
         if not args.prompt or not args.answer:
             print(
@@ -108,6 +118,7 @@ def add_exercise(repo: ExerciseRepository, args: argparse.Namespace) -> None:
 
         prompt = args.prompt
         answer = args.answer
+        identifier = args.identifier
 
     if not prompt or not answer:
         print("Error: Prompt and answer cannot be empty.")
@@ -116,6 +127,7 @@ def add_exercise(repo: ExerciseRepository, args: argparse.Namespace) -> None:
     exercise = Exercise(
         prompt=prompt,
         answer=answer,
+        identifier=identifier,
     )
 
     exercise_id = repo.add(exercise)
@@ -132,6 +144,10 @@ def list_exercises(repo: ExerciseRepository) -> None:
 
     for exercise in exercises:
         print(f"\n[{exercise.id}]")
+
+        if exercise.identifier:
+            print(f"Identifier: {exercise.identifier}")
+
         print(f"Prompt:\n{exercise.prompt}")
         print(f"Answer:\n{exercise.answer}")
         print("-" * 40)

@@ -205,6 +205,34 @@ def test_create_parser_parses_add_arguments() -> None:
     assert args.interactive is False
 
 
+def test_create_parser_parses_identifier() -> None:
+    parser = cli.create_parser()
+
+    args = parser.parse_args(
+        [
+            "add",
+            "--identifier",
+            "book::chapter01::exercise05",
+            "prompt",
+            "answer",
+        ]
+    )
+
+    assert args.command == "add"
+    assert args.identifier == "book::chapter01::exercise05"
+    assert args.prompt == "prompt"
+    assert args.answer == "answer"
+    assert args.interactive is False
+
+
+def test_create_parser_identifier_is_optional() -> None:
+    parser = cli.create_parser()
+
+    args = parser.parse_args(["add", "prompt", "answer"])
+
+    assert args.identifier is None
+
+
 def test_create_parser_parses_interactive_flag() -> None:
     parser = cli.create_parser()
 
@@ -274,6 +302,7 @@ def test_add_exercise_adds_exercise() -> None:
         interactive=False,
         prompt="What is Python?",
         answer="A programming language.",
+        identifier="book::chapter01::exercise05",
     )
 
     cli.add_exercise(repo, args)
@@ -284,6 +313,7 @@ def test_add_exercise_adds_exercise() -> None:
     assert isinstance(exercise, Exercise)
     assert exercise.prompt == "What is Python?"
     assert exercise.answer == "A programming language."
+    assert exercise.identifier == "book::chapter01::exercise05"
 
 
 def test_add_exercise_prints_success_message(
@@ -294,6 +324,7 @@ def test_add_exercise_prints_success_message(
 
     args = argparse.Namespace(
         interactive=False,
+        identifier=None,
         prompt="prompt",
         answer="answer",
     )
@@ -312,6 +343,7 @@ def test_add_exercise_rejects_empty_interactive_prompt(
     repo = Mock()
     args = argparse.Namespace(
         interactive=True,
+        identifier=None,
         prompt=None,
         answer=None,
     )
@@ -321,6 +353,8 @@ def test_add_exercise_rejects_empty_interactive_prompt(
         "edit_in_editor",
         Mock(side_effect=["", "answer"]),
     )
+
+    monkeypatch.setattr("builtins.input", Mock(return_value=""))
 
     with pytest.raises(SystemExit) as exc_info:
         cli.add_exercise(repo, args)
@@ -337,6 +371,7 @@ def test_add_exercise_rejects_empty_interactive_answer(
     repo = Mock()
     args = argparse.Namespace(
         interactive=True,
+        identifier=None,
         prompt=None,
         answer=None,
     )
@@ -346,6 +381,7 @@ def test_add_exercise_rejects_empty_interactive_answer(
         "edit_in_editor",
         Mock(side_effect=["prompt", ""]),
     )
+    monkeypatch.setattr("builtins.input", Mock(return_value=""))
 
     with pytest.raises(SystemExit) as exc_info:
         cli.add_exercise(repo, args)
@@ -363,12 +399,14 @@ def test_add_exercise_interactive_opens_editor_for_prompt_and_answer(
 
     args = argparse.Namespace(
         interactive=True,
+        identifier=None,
         prompt=None,
         answer=None,
     )
 
     fake_editor = Mock(side_effect=["prompt from editor", "answer from editor"])
     monkeypatch.setattr(cli, "edit_in_editor", fake_editor)
+    monkeypatch.setattr("builtins.input", Mock(return_value=""))
 
     cli.add_exercise(repo, args)
 
@@ -383,15 +421,15 @@ def test_add_exercise_interactive_opens_editor_for_prompt_and_answer(
     assert exercise.answer == "answer from editor"
 
 
-def test_add_exercise_interactive_prints_editor_messages(
+def test_add_exercise_interactive_asks_for_identifier(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = Mock()
     repo.add.return_value = 1
 
     args = argparse.Namespace(
         interactive=True,
+        identifier=None,
         prompt=None,
         answer=None,
     )
@@ -401,6 +439,101 @@ def test_add_exercise_interactive_prints_editor_messages(
         "edit_in_editor",
         Mock(side_effect=["prompt", "answer"]),
     )
+    monkeypatch.setattr("builtins.input", Mock(return_value=""))
+
+    monkeypatch.setattr(
+        "builtins.input",
+        Mock(return_value="book::chapter01::exercise05"),
+    )
+
+    cli.add_exercise(repo, args)
+
+    exercise = repo.add.call_args.args[0]
+
+    assert exercise.prompt == "prompt"
+    assert exercise.answer == "answer"
+    assert exercise.identifier == "book::chapter01::exercise05"
+
+
+def test_add_exercise_interactive_uses_provided_identifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = Mock()
+    repo.add.return_value = 1
+
+    args = argparse.Namespace(
+        interactive=True,
+        prompt=None,
+        answer=None,
+        identifier="book::chapter01::exercise05",
+    )
+
+    monkeypatch.setattr(
+        cli,
+        "edit_in_editor",
+        Mock(side_effect=["prompt", "answer"]),
+    )
+    fake_input = Mock()
+    monkeypatch.setattr("builtins.input", fake_input)
+
+    cli.add_exercise(repo, args)
+
+    exercise = repo.add.call_args.args[0]
+
+    assert exercise.identifier == "book::chapter01::exercise05"
+    fake_input.assert_not_called()
+
+
+def test_add_exercise_interactive_allows_empty_identifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = Mock()
+    repo.add.return_value = 1
+
+    args = argparse.Namespace(
+        interactive=True,
+        prompt=None,
+        answer=None,
+        identifier=None,
+    )
+
+    monkeypatch.setattr(
+        cli,
+        "edit_in_editor",
+        Mock(side_effect=["prompt", "answer"]),
+    )
+    monkeypatch.setattr(
+        "builtins.input",
+        Mock(return_value="   "),
+    )
+
+    cli.add_exercise(repo, args)
+
+    exercise = repo.add.call_args.args[0]
+
+    assert exercise.identifier is None
+
+
+def test_add_exercise_interactive_prints_editor_messages(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = Mock()
+    repo.add.return_value = 1
+
+    args = argparse.Namespace(
+        interactive=True,
+        identifier=None,
+        prompt=None,
+        answer=None,
+    )
+
+    monkeypatch.setattr(
+        cli,
+        "edit_in_editor",
+        Mock(side_effect=["prompt", "answer"]),
+    )
+    monkeypatch.setattr("builtins.input", Mock(return_value=""))
 
     cli.add_exercise(repo, args)
 
@@ -452,6 +585,45 @@ def test_list_exercises_prints_exercises(
     assert "Answer:\nA testing framework." in output
 
     assert output.count("-" * 40) == 2
+
+
+def test_list_exercises_prints_identifier(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = Mock()
+    repo.list_all.return_value = [
+        Exercise(
+            id=1,
+            identifier="book::chapter01::exercise05",
+            prompt="What is Python?",
+            answer="A programming language.",
+        ),
+    ]
+
+    cli.list_exercises(repo)
+
+    output = capsys.readouterr().out
+
+    assert "Identifier: book::chapter01::exercise05" in output
+
+
+def test_list_exercises_does_not_print_missing_identifier(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = Mock()
+    repo.list_all.return_value = [
+        Exercise(
+            id=1,
+            prompt="What is Python?",
+            answer="A programming language.",
+        ),
+    ]
+
+    cli.list_exercises(repo)
+
+    output = capsys.readouterr().out
+
+    assert "Identifier:" not in output
 
 
 def test_list_exercises_preserves_multiline_content(

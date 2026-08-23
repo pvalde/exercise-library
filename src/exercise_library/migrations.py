@@ -18,6 +18,7 @@ def _migrate_to_v1(connection: sqlite3.Connection) -> None:
         """
         CREATE TABLE exercises (
             id INTEGER PRIMARY KEY,
+            identifier TEXT UNIQUE,
             prompt TEXT NOT NULL,
             answer TEXT NOT NULL
         )
