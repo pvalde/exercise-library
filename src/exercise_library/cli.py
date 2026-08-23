@@ -89,9 +89,15 @@ def create_parser() -> argparse.ArgumentParser:
         help="Optional identifier for the exercise",
     )
 
-    subparsers.add_parser(
-        "list",
+    browse_parser = subparsers.add_parser(
+        "browse",
         help="List all exercises",
+    )
+
+    browse_parser.add_argument(
+        "-i",
+        "--identifier",
+        help="Browse exercises under this identifier prefix",
     )
 
     return parser
@@ -135,8 +141,11 @@ def add_exercise(repo: ExerciseRepository, args: argparse.Namespace) -> None:
     print(f"\nSuccessfully added exercise with ID {exercise_id}")
 
 
-def list_exercises(repo: ExerciseRepository) -> None:
-    exercises = repo.list_all()
+def browse_exercises(
+    repo: ExerciseRepository,
+    identifier: str | None,
+) -> None:
+    exercises = repo.browse(identifier)
 
     if not exercises:
         print("No exercises found.")
@@ -162,5 +171,5 @@ def main() -> None:
 
     if args.command == "add":
         add_exercise(repo, args)
-    elif args.command == "list":
-        list_exercises(repo)
+    elif args.command == "browse":
+        browse_exercises(repo, args.identifier)

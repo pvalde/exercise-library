@@ -252,12 +252,43 @@ def test_create_parser_accepts_long_interactive_flag() -> None:
     assert args.interactive is True
 
 
-def test_create_parser_parses_list_command() -> None:
+def test_create_parser_parses_browse_command() -> None:
     parser = cli.create_parser()
 
-    args = parser.parse_args(["list"])
+    args = parser.parse_args(["browse"])
 
-    assert args.command == "list"
+    assert args.command == "browse"
+    assert args.identifier is None
+
+
+def test_create_parser_parses_browse_identifier() -> None:
+    parser = cli.create_parser()
+
+    args = parser.parse_args(
+        [
+            "browse",
+            "--identifier",
+            "book::chapter01",
+        ]
+    )
+
+    assert args.command == "browse"
+    assert args.identifier == "book::chapter01"
+
+
+def test_create_parser_accepts_short_identifier_flag() -> None:
+    parser = cli.create_parser()
+
+    args = parser.parse_args(
+        [
+            "browse",
+            "-i",
+            "book::chapter01",
+        ]
+    )
+
+    assert args.command == "browse"
+    assert args.identifier == "book::chapter01"
 
 
 def test_add_exercise_requires_prompt_and_answer(
@@ -543,23 +574,23 @@ def test_add_exercise_interactive_prints_editor_messages(
     assert "Opening editor for answer..." in output
 
 
-def test_list_exercises_prints_no_exercises_message(
+def test_browse_exercises_prints_no_exercises_message(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = Mock()
-    repo.list_all.return_value = []
+    repo.browse.return_value = []
 
-    cli.list_exercises(repo)
+    cli.browse_exercises(repo, None)
 
-    repo.list_all.assert_called_once()
+    repo.browse.assert_called_once()
     assert capsys.readouterr().out == "No exercises found.\n"
 
 
-def test_list_exercises_prints_exercises(
+def test_browse_exercises_prints_exercises(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = Mock()
-    repo.list_all.return_value = [
+    repo.browse.return_value = [
         Exercise(
             id=1,
             prompt="What is Python?",
@@ -572,7 +603,7 @@ def test_list_exercises_prints_exercises(
         ),
     ]
 
-    cli.list_exercises(repo)
+    cli.browse_exercises(repo, None)
 
     output = capsys.readouterr().out
 
@@ -587,11 +618,37 @@ def test_list_exercises_prints_exercises(
     assert output.count("-" * 40) == 2
 
 
-def test_list_exercises_prints_identifier(
+def test_browse_exercises_prints_filtered_exercises(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = Mock()
-    repo.list_all.return_value = [
+    repo.browse.return_value = [
+        Exercise(
+            id=5,
+            identifier="book::chapter01::exercise05",
+            prompt="What is the derivative of x^2?",
+            answer="2x",
+        ),
+    ]
+
+    cli.browse_exercises(
+        repo,
+        "book::chapter01",
+    )
+
+    output = capsys.readouterr().out
+
+    assert "[5]" in output
+    assert "book::chapter01::exercise05" in output
+    assert "Prompt:\nWhat is the derivative of x^2?" in output
+    assert "Answer:\n2x" in output
+
+
+def test_browse_exercises_prints_identifier(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = Mock()
+    repo.browse.return_value = [
         Exercise(
             id=1,
             identifier="book::chapter01::exercise05",
@@ -600,18 +657,18 @@ def test_list_exercises_prints_identifier(
         ),
     ]
 
-    cli.list_exercises(repo)
+    cli.browse_exercises(repo, None)
 
     output = capsys.readouterr().out
 
     assert "Identifier: book::chapter01::exercise05" in output
 
 
-def test_list_exercises_does_not_print_missing_identifier(
+def test_browse_exercises_does_not_print_missing_identifier(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = Mock()
-    repo.list_all.return_value = [
+    repo.browse.return_value = [
         Exercise(
             id=1,
             prompt="What is Python?",
@@ -619,18 +676,18 @@ def test_list_exercises_does_not_print_missing_identifier(
         ),
     ]
 
-    cli.list_exercises(repo)
+    cli.browse_exercises(repo, None)
 
     output = capsys.readouterr().out
 
     assert "Identifier:" not in output
 
 
-def test_list_exercises_preserves_multiline_content(
+def test_browse_exercises_preserves_multiline_content(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = Mock()
-    repo.list_all.return_value = [
+    repo.browse.return_value = [
         Exercise(
             id=1,
             prompt="Line one\nLine two",
@@ -638,7 +695,7 @@ def test_list_exercises_preserves_multiline_content(
         )
     ]
 
-    cli.list_exercises(repo)
+    cli.browse_exercises(repo, None)
 
     output = capsys.readouterr().out
 
@@ -676,14 +733,17 @@ def test_main_adds_exercise(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_main_lists_exercises(
+def test_main_browse_exercises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_repo = Mock()
 
     parser = Mock()
-    parser.parse_args.return_value = argparse.Namespace(command="list")
-    list_exercises = Mock()
+    parser.parse_args.return_value = argparse.Namespace(
+        command="browse",
+        identifier=None,
+    )
+    browse_exercises = Mock()
     initialize = Mock(return_value="connection")
     ExerciseRepository = Mock(return_value=fake_repo)
 
@@ -694,10 +754,40 @@ def test_main_lists_exercises(
         "ExerciseRepository",
         ExerciseRepository,
     )
-    monkeypatch.setattr(cli, "list_exercises", list_exercises)
+    monkeypatch.setattr(cli, "browse_exercises", browse_exercises)
 
     cli.main()
 
     initialize.assert_called_once()
     ExerciseRepository.assert_called_once_with("connection")
-    list_exercises.assert_called_once_with(fake_repo)
+    browse_exercises.assert_called_once_with(fake_repo, None)
+
+
+def test_main_browses_exercises_with_identifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_repo = Mock()
+
+    parser = Mock()
+    parser.parse_args.return_value = argparse.Namespace(
+        command="browse",
+        identifier="book::chapter01",
+    )
+
+    initialize = Mock(return_value="connection")
+    repository = Mock(return_value=fake_repo)
+    browse_exercises = Mock()
+
+    monkeypatch.setattr(cli, "create_parser", lambda: parser)
+    monkeypatch.setattr(cli, "initialize", initialize)
+    monkeypatch.setattr(cli, "ExerciseRepository", repository)
+    monkeypatch.setattr(cli, "browse_exercises", browse_exercises)
+
+    cli.main()
+
+    initialize.assert_called_once()
+    repository.assert_called_once_with("connection")
+    browse_exercises.assert_called_once_with(
+        fake_repo,
+        "book::chapter01",
+    )

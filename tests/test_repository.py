@@ -136,3 +136,127 @@ def test_list_all_returns_exercises(
     assert exercises[1].answer == "Answer 2"
     assert exercises[1].id == 2
     assert exercises[1].identifier == "book-b::exset::02"
+
+
+def test_browse_matches_exact_identifier(
+    tmp_path: Path,
+) -> None:
+    connection = initialize()
+
+    try:
+        repository = ExerciseRepository(connection)
+
+        repository.add(
+            Exercise(
+                prompt="Question 1",
+                answer="Answer 1",
+                identifier="book::chapter01",
+            )
+        )
+        repository.add(
+            Exercise(
+                prompt="Question 2",
+                answer="Answer 2",
+                identifier="book::chapter02",
+            )
+        )
+
+        exercises = repository.browse("book::chapter01")
+
+        assert len(exercises) == 1
+        assert exercises[0].identifier == "book::chapter01"
+    finally:
+        connection.close()
+
+
+def test_browse_matches_identifier_prefix(
+    tmp_path: Path,
+) -> None:
+    connection = initialize()
+
+    try:
+        repository = ExerciseRepository(connection)
+
+        repository.add(
+            Exercise(
+                prompt="Question 1",
+                answer="Answer 1",
+                identifier="book::chapter01",
+            )
+        )
+        repository.add(
+            Exercise(
+                prompt="Question 2",
+                answer="Answer 2",
+                identifier="book::chapter01::section03",
+            )
+        )
+        repository.add(
+            Exercise(
+                prompt="Question 3",
+                answer="Answer 3",
+                identifier="book::chapter02",
+            )
+        )
+
+        exercises = repository.browse("book::chapter01")
+
+        assert len(exercises) == 2
+        assert exercises[0].identifier == "book::chapter01"
+        assert exercises[1].identifier == "book::chapter01::section03"
+    finally:
+        connection.close()
+
+
+def test_browse_does_not_match_similar_identifier(
+    tmp_path: Path,
+) -> None:
+    connection = initialize()
+
+    try:
+        repository = ExerciseRepository(connection)
+
+        repository.add(
+            Exercise(
+                prompt="Question 1",
+                answer="Answer 1",
+                identifier="book::chapter01",
+            )
+        )
+        repository.add(
+            Exercise(
+                prompt="Question 2",
+                answer="Answer 2",
+                identifier="book::chapter010",
+            )
+        )
+
+        exercises = repository.browse("book::chapter01")
+
+        assert len(exercises) == 1
+        assert exercises[0].identifier == "book::chapter01"
+    finally:
+        connection.close()
+
+
+def test_browse_returns_empty_list_when_no_identifier_matches(
+    tmp_path: Path,
+) -> None:
+    connection = initialize()
+
+    try:
+        repository = ExerciseRepository(connection)
+
+        repository.add(
+            Exercise(
+                prompt="Question",
+                answer="Answer",
+                identifier="book::chapter01",
+            )
+        )
+
+        exercises = repository.browse("book::chapter99")
+
+        assert exercises == []
+    finally:
+        connection.close()

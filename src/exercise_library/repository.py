@@ -59,3 +59,35 @@ class ExerciseRepository:
             )
             for row in cursor.fetchall()
         ]
+
+    def browse(self, identifier: str | None = None) -> list[Exercise]:
+        if identifier is None:
+            cursor = self._connection.execute(
+                """
+                SELECT id, identifier, prompt, answer
+                FROM exercises
+                ORDER BY id
+                """
+            )
+
+        else:
+            cursor = self._connection.execute(
+                """
+                SELECT id, identifier, prompt, answer
+                FROM exercises
+                WHERE identifier = ?
+                   OR identifier LIKE ? || '::%'
+                ORDER BY id
+                """,
+                (identifier, identifier),
+            )
+
+        return [
+            Exercise(
+                id=row["id"],
+                identifier=row["identifier"],
+                prompt=row["prompt"],
+                answer=row["answer"],
+            )
+            for row in cursor.fetchall()
+        ]
