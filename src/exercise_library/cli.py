@@ -5,6 +5,8 @@ import subprocess
 import sys
 import tempfile
 
+import shtab
+
 from exercise_library.application import ExerciseApplication
 from exercise_library.config import APP_NAME
 from exercise_library.database import initialize
@@ -109,6 +111,8 @@ def create_parser() -> argparse.ArgumentParser:
         "--identifier",
         help="Browse exercises under this identifier prefix",
     )
+
+    shtab.add_argument_to(parser)
 
     return parser
 
