@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import pytest
 
 from exercise_library.application import ExerciseApplication
@@ -21,7 +23,8 @@ def test_add_exercise_returns_id(
         answer="A programming language.",
     )
 
-    assert exercise_id == 1
+    assert exercise_id is not None
+    assert isinstance(exercise_id, UUID)
 
 
 def test_add_exercise_persists_exercise(
@@ -35,14 +38,10 @@ def test_add_exercise_persists_exercise(
 
     exercises = application.repository.browse()
 
-    assert exercises == [
-        Exercise(
-            id=1,
-            prompt="What is Python?",
-            answer="A programming language.",
-            identifier="book::chapter01::exercise05",
-        )
-    ]
+    assert exercises[0].id is not None
+    assert exercises[0].prompt == "What is Python?"
+    assert exercises[0].answer == "A programming language."
+    assert exercises[0].identifier == "book::chapter01::exercise05"
 
 
 def test_add_exercise_rejects_empty_prompt(
@@ -83,18 +82,13 @@ def test_browse_exercises_returns_exercises(
 
     exercises = application.browse_exercises()
 
-    assert exercises == [
-        Exercise(
-            id=1,
-            prompt="What is Python?",
-            answer="A programming language.",
-        ),
-        Exercise(
-            id=2,
-            prompt="What is pytest?",
-            answer="A testing framework.",
-        ),
-    ]
+    assert exercises[0].id is not None
+    assert exercises[0].prompt == "What is Python?"
+    assert exercises[0].answer == "A programming language."
+
+    assert exercises[1].id is not None
+    assert exercises[1].prompt == "What is pytest?"
+    assert exercises[1].answer == "A testing framework."
 
 
 def test_browse_exercises_filters_by_identifier(
@@ -124,20 +118,15 @@ def test_browse_exercises_filters_by_identifier(
 
     exercises = application.browse_exercises("book::chapter01")
 
-    assert exercises == [
-        Exercise(
-            id=1,
-            prompt="Exercise 1",
-            answer="Answer 1",
-            identifier="book::chapter01::exercise01",
-        ),
-        Exercise(
-            id=2,
-            prompt="Exercise 2",
-            answer="Answer 2",
-            identifier="book::chapter01::exercise02",
-        ),
-    ]
+    assert exercises[0].id is not None
+    assert exercises[0].prompt == "Exercise 1"
+    assert exercises[0].answer == "Answer 1"
+    assert exercises[0].identifier == "book::chapter01::exercise01"
+
+    assert exercises[1].id is not None
+    assert exercises[1].prompt == "Exercise 2"
+    assert exercises[1].answer == "Answer 2"
+    assert exercises[1].identifier == "book::chapter01::exercise02"
 
 
 @pytest.mark.parametrize(
@@ -163,7 +152,7 @@ def test_add_exercise_accepts_valid_identifier(
         identifier=identifier,
     )
 
-    assert exercise_id == 1
+    assert exercise_id is not None
 
 
 @pytest.mark.parametrize(
@@ -209,4 +198,4 @@ def test_add_exercise_allows_identifier_to_be_none(
         identifier=None,
     )
 
-    assert exercise_id == 1
+    assert exercise_id is not None

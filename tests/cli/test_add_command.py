@@ -78,7 +78,7 @@ def test_add_exercise_prints_success_message(
 
     output = capsys.readouterr().out
 
-    assert "Successfully added exercise with ID 1" in output
+    assert "Successfully added exercise with ID" in output
 
 
 def test_add_exercise_rejects_empty_interactive_prompt(

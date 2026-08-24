@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 
@@ -29,7 +30,7 @@ def test_add_exercise(
 
         row = connection.execute(
             "SELECT id, identifier, prompt, answer FROM exercises WHERE id = ?",
-            (exercise_id,),
+            (str(exercise_id),),
         ).fetchone()
 
         assert row is not None
@@ -129,12 +130,14 @@ def test_list_all_returns_exercises(
     assert len(exercises) == 2
     assert exercises[0].prompt == "Question 1"
     assert exercises[0].answer == "Answer 1"
-    assert exercises[0].id == 1
+    assert exercises[0].id is not None
+    assert isinstance(exercises[0].id, UUID)
     assert exercises[0].identifier == "book-a::exset::01"
 
     assert exercises[1].prompt == "Question 2"
     assert exercises[1].answer == "Answer 2"
-    assert exercises[1].id == 2
+    assert exercises[0].id is not None
+    assert isinstance(exercises[0].id, UUID)
     assert exercises[1].identifier == "book-b::exset::02"
 
 

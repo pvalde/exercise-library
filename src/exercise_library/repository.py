@@ -1,4 +1,5 @@
 import sqlite3
+from uuid import UUID, uuid7
 
 from exercise_library.models import Exercise
 
@@ -19,14 +20,22 @@ class ExerciseRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
 
-    def add(self, exercise: Exercise) -> int:
+    def add(self, exercise: Exercise) -> UUID:
+
+        exercise_id = uuid7()
+
         try:
-            cursor = self._connection.execute(
+            self._connection.execute(
                 """
-                INSERT INTO exercises (identifier, prompt, answer)
-                VALUES (?, ?, ?)
+                INSERT INTO exercises (id, identifier, prompt, answer)
+                VALUES (?, ?, ?, ?)
                 """,
-                (exercise.identifier, exercise.prompt, exercise.answer),
+                (
+                    str(exercise_id),
+                    exercise.identifier,
+                    exercise.prompt,
+                    exercise.answer,
+                ),
             )
             self._connection.commit()
         except sqlite3.IntegrityError as error:
@@ -36,12 +45,7 @@ class ExerciseRepository:
                 ) from error
             raise
 
-        row_id = cursor.lastrowid
-        if row_id is None:
-            raise RepositoryInsertError(
-                "Failed to retrieve ID of newly created exercise"
-            )
-        return row_id
+        return exercise_id
 
     def list_all(self) -> list[Exercise]:
         cursor = self._connection.execute(
@@ -52,7 +56,7 @@ class ExerciseRepository:
         )
         return [
             Exercise(
-                id=row["id"],
+                id=UUID(row["id"]),
                 identifier=row["identifier"],
                 prompt=row["prompt"],
                 answer=row["answer"],
@@ -84,7 +88,7 @@ class ExerciseRepository:
 
         return [
             Exercise(
-                id=row["id"],
+                id=UUID(row["id"]),
                 identifier=row["identifier"],
                 prompt=row["prompt"],
                 answer=row["answer"],

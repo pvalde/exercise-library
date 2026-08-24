@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass
+from uuid import UUID
 
 from exercise_library.models import Exercise
 from exercise_library.repository import ExerciseRepository
@@ -16,7 +17,7 @@ class ExerciseApplication:
         prompt: str,
         answer: str,
         identifier: str | None = None,
-    ) -> int:
+    ) -> UUID:
         if not prompt:
             raise ValueError("Prompt and answer cannot be empty.")
 
