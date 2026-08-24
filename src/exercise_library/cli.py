@@ -78,12 +78,14 @@ def create_parser() -> argparse.ArgumentParser:
 
     add_parser.add_argument(
         "prompt",
+        type=str,
         nargs="?",
         help="The exercise prompt",
     )
 
     add_parser.add_argument(
         "answer",
+        type=str,
         nargs="?",
         help="The exercise answer",
     )
@@ -98,6 +100,7 @@ def create_parser() -> argparse.ArgumentParser:
     add_parser.add_argument(
         "-I",
         "--identifier",
+        type=str,
         help="Optional identifier for the exercise",
     )
 
@@ -109,6 +112,7 @@ def create_parser() -> argparse.ArgumentParser:
     browse_parser.add_argument(
         "-I",
         "--identifier",
+        type=str,
         help="Browse exercises under this identifier prefix",
     )
 
