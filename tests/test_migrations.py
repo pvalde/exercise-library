@@ -19,6 +19,7 @@ def test_migrate_creates_schema() -> None:
         "identifier",
         "prompt",
         "answer",
+        "created_at",
     ]
 
 

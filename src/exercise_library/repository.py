@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import UTC, datetime
 from uuid import UUID, uuid7
 
 from exercise_library.models import Exercise
@@ -20,6 +21,29 @@ class ExerciseRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
 
+    @staticmethod
+    def _to_db_datetime(value: datetime) -> int:
+        """
+        Convert a timezone-aware datetime to Unix time in milliseconds.
+
+        SQLite stores timestamps as INTEGER values representing the number of
+        milliseconds since the Unix epoch (1970-01-01 00:00:00 UTC).
+        """
+        if value.tzinfo is None:
+            raise ValueError("datetime must be timezone-aware")
+
+        return int(value.timestamp() * 1000)
+
+    @staticmethod
+    def _from_db_datetime(value: int) -> datetime:
+        """
+        Convert a Unix timestamp in milliseconds to a timezone-aware UTC datetime.
+
+        The value is expected to represent the number of milliseconds since the
+        Unix epoch (1970-01-01 00:00:00 UTC).
+        """
+        return datetime.fromtimestamp(value / 1000, tz=UTC)
+
     def add(self, exercise: Exercise) -> UUID:
 
         exercise_id = uuid7()
@@ -27,14 +51,15 @@ class ExerciseRepository:
         try:
             self._connection.execute(
                 """
-                INSERT INTO exercises (id, identifier, prompt, answer)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO exercises (id, identifier, prompt, answer, created_at)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 (
                     str(exercise_id),
                     exercise.identifier,
                     exercise.prompt,
                     exercise.answer,
+                    self._to_db_datetime(datetime.now(tz=UTC)),
                 ),
             )
             self._connection.commit()
