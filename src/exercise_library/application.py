@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from exercise_library.models import Exercise
-from exercise_library.repository import ExerciseRepository
+from exercise_library.repository import DuplicateIdentifierError, ExerciseRepository
 
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9_-]+(?:::[A-Za-z0-9_-]+)*$")
 
@@ -30,11 +30,14 @@ class ExerciseApplication:
                 "dash, underscore, and '::' separators."
             )
 
-        exercise = Exercise(
-            prompt=prompt,
-            answer=answer,
-            identifier=identifier,
-        )
+        try:
+            exercise = Exercise(
+                prompt=prompt,
+                answer=answer,
+                identifier=identifier,
+            )
+        except DuplicateIdentifierError as e:
+            raise ValueError("Identifier already exists") from e
 
         return self.repository.add(exercise)
 

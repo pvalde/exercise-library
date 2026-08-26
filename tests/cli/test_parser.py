@@ -4,14 +4,14 @@ from exercise_library.cli.parser import create_parser
 
 
 def test_create_parser_requires_command() -> None:
-    parser = create_parser()
+    parser, _ = create_parser()
 
     with pytest.raises(SystemExit):
         parser.parse_args([])
 
 
 def test_create_parser_parses_add_arguments() -> None:
-    parser = create_parser()
+    parser, _ = create_parser()
 
     args = parser.parse_args(["add", "prompt", "answer"])
 
@@ -22,7 +22,7 @@ def test_create_parser_parses_add_arguments() -> None:
 
 
 def test_create_parser_parses_identifier() -> None:
-    parser = create_parser()
+    parser, _ = create_parser()
 
     args = parser.parse_args(
         [
@@ -42,7 +42,7 @@ def test_create_parser_parses_identifier() -> None:
 
 
 def test_create_parser_identifier_is_optional() -> None:
-    parser = create_parser()
+    parser, _ = create_parser()
 
     args = parser.parse_args(["add", "prompt", "answer"])
 
@@ -50,7 +50,7 @@ def test_create_parser_identifier_is_optional() -> None:
 
 
 def test_create_parser_parses_interactive_flag() -> None:
-    parser = create_parser()
+    parser, _ = create_parser()
 
     args = parser.parse_args(["add", "-i"])
 
@@ -61,7 +61,7 @@ def test_create_parser_parses_interactive_flag() -> None:
 
 
 def test_create_parser_accepts_long_interactive_flag() -> None:
-    parser = create_parser()
+    parser, _ = create_parser()
 
     args = parser.parse_args(["add", "--interactive"])
 
@@ -69,7 +69,7 @@ def test_create_parser_accepts_long_interactive_flag() -> None:
 
 
 def test_create_parser_parses_browse_command() -> None:
-    parser = create_parser()
+    parser, _ = create_parser()
 
     args = parser.parse_args(["browse"])
 
@@ -78,7 +78,7 @@ def test_create_parser_parses_browse_command() -> None:
 
 
 def test_create_parser_parses_browse_identifier() -> None:
-    parser = create_parser()
+    parser, _ = create_parser()
 
     args = parser.parse_args(
         [
@@ -93,7 +93,7 @@ def test_create_parser_parses_browse_identifier() -> None:
 
 
 def test_create_parser_accepts_long_browse_identifier_flag() -> None:
-    parser = create_parser()
+    parser, _ = create_parser()
 
     args = parser.parse_args(
         [
@@ -108,7 +108,7 @@ def test_create_parser_accepts_long_browse_identifier_flag() -> None:
 
 
 def test_create_parser_rejects_short_browse_identifier_flag() -> None:
-    parser = create_parser()
+    parser, _ = create_parser()
 
     with pytest.raises(SystemExit):
         parser.parse_args(

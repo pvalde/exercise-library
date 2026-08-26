@@ -80,7 +80,7 @@ def _edit_in_editor(
             os.unlink(tf_name)
 
 
-def edit_in_editor(field_name: str, **context: str) -> str | None:
+def edit_in_editor(field_name: str, context: dict[str, str]) -> str | None:
     return _edit_in_editor(
         field_name=field_name, launch_editor=_launch_editor, **context
     )

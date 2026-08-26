@@ -3,7 +3,9 @@ import argparse
 import shtab
 
 
-def create_parser() -> argparse.ArgumentParser:
+def create_parser() -> tuple[
+    argparse.ArgumentParser, dict[str, argparse.ArgumentParser]
+]:
     parser = argparse.ArgumentParser(
         description="Manage your exercise library.",
     )
@@ -13,9 +15,13 @@ def create_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
+    add_description = (
+        "Add a new exercise." + " Provide prompt and answer, or use --interactive."
+    )
     add_parser = subparsers.add_parser(
         "add",
-        help="Add a new exercise",
+        help=add_description,
+        description=add_description,
     )
 
     add_parser.add_argument(
@@ -60,4 +66,4 @@ def create_parser() -> argparse.ArgumentParser:
 
     shtab.add_argument_to(parser)
 
-    return parser
+    return (parser, {"add": add_parser, "browse": browse_parser})

@@ -8,7 +8,7 @@ from .parser import create_parser
 
 
 def main() -> None:
-    parser = create_parser()
+    parser, subparsers = create_parser()
     args = parser.parse_args()
 
     connection = initialize()
@@ -16,6 +16,22 @@ def main() -> None:
     application = ExerciseApplication(repository)
 
     if args.command == "add":
-        add_exercise(application, args)
+        result = add_exercise(application, args)
+        if result is False:
+            if args.interactive:
+                print("ERROR: Prompt and answer cannot be empty.")
+            else:
+                print(
+                    "ERROR: Prompt and answer are required unless",
+                    " --interactive is used.",
+                )
+
+            print(" " * 7 + "Could not add exercise to the library.")
+            print()
+            subparsers["add"].print_help()
+
+        else:
+            print("Exercise was successfully added to the library.")
+
     elif args.command == "browse":
         browse_exercises(application, args.identifier)

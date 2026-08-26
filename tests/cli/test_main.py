@@ -10,6 +10,7 @@ def test_main_adds_exercise(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     parser = Mock()
+    subparsers = Mock()
 
     parser.parse_args.return_value = argparse.Namespace(
         command="add",
@@ -27,7 +28,7 @@ def test_main_adds_exercise(
     monkeypatch.setattr(
         cli,
         "create_parser",
-        Mock(return_value=parser),
+        Mock(return_value=(parser, subparsers)),
     )
     monkeypatch.setattr(
         cli,
@@ -63,6 +64,7 @@ def test_main_browse_exercises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     parser = Mock()
+    subparsers = Mock()
 
     parser.parse_args.return_value = argparse.Namespace(
         command="browse",
@@ -77,7 +79,7 @@ def test_main_browse_exercises(
     monkeypatch.setattr(
         cli,
         "create_parser",
-        Mock(return_value=parser),
+        Mock(return_value=(parser, subparsers)),
     )
     monkeypatch.setattr(
         cli,
@@ -113,6 +115,7 @@ def test_main_browses_exercises_with_identifier(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     parser = Mock()
+    subparsers = Mock()
 
     parser.parse_args.return_value = argparse.Namespace(
         command="browse",
@@ -127,7 +130,7 @@ def test_main_browses_exercises_with_identifier(
     monkeypatch.setattr(
         cli,
         "create_parser",
-        Mock(return_value=parser),
+        Mock(return_value=(parser, subparsers)),
     )
     monkeypatch.setattr(
         cli,
