@@ -8,6 +8,10 @@ from exercise_library.application import ExerciseApplication
 from .editor import edit_in_editor
 
 
+class AddInteractiveError(Exception):
+    pass
+
+
 def _identifier_prompt() -> str | None:
     answer = tk_prompt("Identifier (optional): ")
     return answer.strip() if answer.strip() != "" else None
@@ -18,11 +22,7 @@ def _add_exercise(
     args: argparse.Namespace,
     editor: Callable[[str, dict[str, str]], str | None],
     identifier_prompt: Callable[[], str | None],
-) -> bool:
-    """
-    Returns None if either exercise's prompt and exercise's answer is not
-    provided and therefore the exercise was not added to the library.
-    """
+) -> None:
     if args.interactive:
         exercise_identifier = args.identifier
         if exercise_identifier is None:
@@ -30,24 +30,19 @@ def _add_exercise(
 
         exercise_prompt = editor("prompt", {"identifier": exercise_identifier})
 
-        if exercise_prompt is None:
-            print("Prompt cannot be empty.")
-            return False
+        if exercise_prompt is None or not exercise_prompt.strip():
+            raise AddInteractiveError("Prompt cannot be empty.")
 
         exercise_answer = editor(
             "answer", {"identifier": exercise_identifier, "prompt": exercise_prompt}
         )
 
-        if exercise_answer is None:
-            print("Answer cannot be empty")
-            return False
+        if exercise_answer is None or not exercise_answer.strip():
+            raise AddInteractiveError("Answer cannot be empty.")
 
     else:
-        if not args.prompt or not args.answer:
-            return False
-
-        exercise_prompt = args.prompt
-        exercise_answer = args.answer
+        exercise_prompt = "" if args.prompt is None else args.prompt
+        exercise_answer = "" if args.answer is None else args.answer
         exercise_identifier = args.identifier
 
     application.add_exercise(
@@ -56,13 +51,11 @@ def _add_exercise(
         identifier=exercise_identifier,
     )
 
-    return True
-
 
 def add_exercise(
     application: ExerciseApplication,
     args: argparse.Namespace,
-) -> bool:
+) -> None:
     """
     Returns None if either exercise's prompt and exercise's answer is not
     provided and therefore the exercise was not added to the library.

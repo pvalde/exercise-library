@@ -2,7 +2,7 @@ from uuid import UUID
 
 import pytest
 
-from exercise_library.application import ExerciseApplication
+from exercise_library.application import ExerciseApplication, InvalidExerciseError
 from exercise_library.database import initialize
 from exercise_library.models import Exercise
 from exercise_library.repository import ExerciseRepository
@@ -13,6 +13,26 @@ def application() -> ExerciseApplication:
     connection = initialize()
     repository = ExerciseRepository(connection)
     return ExerciseApplication(repository)
+
+
+@pytest.mark.parametrize(
+    "prompt",
+    [
+        "",
+        " ",
+    ],
+)
+def test_add_exercise_raises_if_invalid_prompt(
+    application: ExerciseApplication,
+    prompt: str,
+) -> None:
+
+    with pytest.raises(InvalidExerciseError):
+        application.add_exercise(
+            identifier=None,
+            prompt=prompt,
+            answer="some content",
+        )
 
 
 def test_add_exercise_returns_id(
@@ -47,7 +67,7 @@ def test_add_exercise_persists_exercise(
 def test_add_exercise_rejects_empty_prompt(
     application: ExerciseApplication,
 ) -> None:
-    with pytest.raises(ValueError, match="Prompt and answer cannot be empty."):
+    with pytest.raises(InvalidExerciseError, match="Prompt cannot be empty."):
         application.add_exercise(
             prompt="",
             answer="An answer.",
@@ -57,10 +77,34 @@ def test_add_exercise_rejects_empty_prompt(
 def test_add_exercise_rejects_empty_answer(
     application: ExerciseApplication,
 ) -> None:
-    with pytest.raises(ValueError, match="Prompt and answer cannot be empty."):
+    with pytest.raises(InvalidExerciseError, match="Answer cannot be empty."):
         application.add_exercise(
             prompt="A prompt.",
             answer="",
+        )
+
+
+def test_add_exercise_raises_with_duplicated_identifier(
+    application: ExerciseApplication,
+) -> None:
+
+    identifier = "identifier"
+    assert isinstance(
+        application.add_exercise(
+            identifier=identifier,
+            prompt="some content",
+            answer="some more content",
+        ),
+        UUID,
+    )
+
+    exc_msg = f"Exercise identifier already exists: {identifier}."
+
+    with pytest.raises(InvalidExerciseError, match=exc_msg):
+        application.add_exercise(
+            identifier=identifier,
+            prompt="some content",
+            answer="some more content",
         )
 
 
@@ -158,6 +202,8 @@ def test_add_exercise_accepts_valid_identifier(
 @pytest.mark.parametrize(
     "identifier",
     [
+        "",
+        "",
         "book:chapter",
         "book:::chapter",
         "book::chapter:01",
@@ -178,7 +224,7 @@ def test_add_exercise_rejects_invalid_identifier(
     identifier: str,
 ) -> None:
     with pytest.raises(
-        ValueError,
+        InvalidExerciseError,
         match="Identifier can only contain letters, numbers, dash,"
         + " underscore, and '::' separators.",
     ):

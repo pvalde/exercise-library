@@ -8,6 +8,14 @@ from exercise_library.repository import DuplicateIdentifierError, ExerciseReposi
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9_-]+(?:::[A-Za-z0-9_-]+)*$")
 
 
+class ExerciseApplicationError(Exception):
+    pass
+
+
+class InvalidExerciseError(ExerciseApplicationError):
+    pass
+
+
 @dataclass
 class ExerciseApplication:
     repository: ExerciseRepository
@@ -18,28 +26,37 @@ class ExerciseApplication:
         answer: str,
         identifier: str | None = None,
     ) -> UUID:
-        if not prompt:
-            raise ValueError("Prompt and answer cannot be empty.")
 
-        if not answer:
-            raise ValueError("Prompt and answer cannot be empty.")
+        if not prompt.strip() and not answer.strip():
+            raise InvalidExerciseError("Prompt and answer cannot be empty.")
+
+        if not prompt.strip():
+            raise InvalidExerciseError("Prompt cannot be empty.")
+
+        if not answer.strip():
+            raise InvalidExerciseError("Answer cannot be empty.")
 
         if identifier is not None and not _IDENTIFIER_PATTERN.fullmatch(identifier):
-            raise ValueError(
+            raise InvalidExerciseError(
                 "Identifier can only contain letters, numbers, "
                 "dash, underscore, and '::' separators."
             )
 
-        try:
-            exercise = Exercise(
-                prompt=prompt,
-                answer=answer,
-                identifier=identifier,
-            )
-        except DuplicateIdentifierError as e:
-            raise ValueError("Identifier already exists") from e
+        exercise = Exercise(
+            prompt=prompt,
+            answer=answer,
+            identifier=identifier,
+        )
 
-        return self.repository.add(exercise)
+        try:
+            exercise_id = self.repository.add(exercise)
+
+        except DuplicateIdentifierError as error:
+            raise InvalidExerciseError(
+                f"Exercise identifier already exists: {identifier}."
+            ) from error
+
+        return exercise_id
 
     def browse_exercises(
         self,

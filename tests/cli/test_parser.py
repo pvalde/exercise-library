@@ -1,120 +1,182 @@
+import argparse
+import sys
+
 import pytest
 
-from exercise_library.cli.parser import create_parser
+from exercise_library.cli.parser import Parser
 
 
-def test_create_parser_requires_command() -> None:
-    parser, _ = create_parser()
+def get_args(
+    monkeypatch: pytest.MonkeyPatch,
+    *args: str,
+) -> argparse.Namespace:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["exercise-library", *args],
+    )
 
-    with pytest.raises(SystemExit):
-        parser.parse_args([])
-
-
-def test_create_parser_parses_add_arguments() -> None:
-    parser, _ = create_parser()
-
-    args = parser.parse_args(["add", "prompt", "answer"])
-
-    assert args.command == "add"
-    assert args.prompt == "prompt"
-    assert args.answer == "answer"
-    assert args.interactive is False
+    return Parser().get_args()
 
 
-def test_create_parser_parses_identifier() -> None:
-    parser, _ = create_parser()
-
-    args = parser.parse_args(
-        [
-            "add",
-            "-I",
-            "book::chapter01::exercise05",
-            "prompt",
-            "answer",
-        ]
+def test_add_with_prompt_and_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args = get_args(
+        monkeypatch,
+        "add",
+        "What is 2 + 2?",
+        "4",
     )
 
     assert args.command == "add"
-    assert args.identifier == "book::chapter01::exercise05"
-    assert args.prompt == "prompt"
-    assert args.answer == "answer"
+    assert args.prompt == "What is 2 + 2?"
+    assert args.answer == "4"
     assert args.interactive is False
-
-
-def test_create_parser_identifier_is_optional() -> None:
-    parser, _ = create_parser()
-
-    args = parser.parse_args(["add", "prompt", "answer"])
-
     assert args.identifier is None
 
 
-def test_create_parser_parses_interactive_flag() -> None:
-    parser, _ = create_parser()
-
-    args = parser.parse_args(["add", "-i"])
+def test_add_interactive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args = get_args(
+        monkeypatch,
+        "add",
+        "--interactive",
+    )
 
     assert args.command == "add"
     assert args.prompt is None
     assert args.answer is None
     assert args.interactive is True
+    assert args.identifier is None
 
 
-def test_create_parser_accepts_long_interactive_flag() -> None:
-    parser, _ = create_parser()
+def test_add_interactive_ignores_prompt_and_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args = get_args(
+        monkeypatch,
+        "add",
+        "--interactive",
+        "prompt content",
+        "answer content",
+    )
 
-    args = parser.parse_args(["add", "--interactive"])
-
+    assert args.command == "add"
+    assert args.prompt is None
+    assert args.answer is None
     assert args.interactive is True
+    assert args.identifier is None
 
 
-def test_create_parser_parses_browse_command() -> None:
-    parser, _ = create_parser()
+def test_add_with_identifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args = get_args(
+        monkeypatch,
+        "add",
+        "What is 2 + 2?",
+        "4",
+        "--identifier",
+        "math",
+    )
 
-    args = parser.parse_args(["browse"])
+    assert args.command == "add"
+    assert args.prompt == "What is 2 + 2?"
+    assert args.answer == "4"
+    assert args.interactive is False
+    assert args.identifier == "math"
+
+
+def test_add_missing_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+
+    with pytest.raises(SystemExit) as exc_info:
+        get_args(
+            monkeypatch,
+            "add",
+            "4",
+        )
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+
+    assert "prompt and answer are required" in captured.err
+    assert "usage:" in captured.err
+    assert "exercise-library add" in captured.err
+
+
+def test_add_missing_answer(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+
+    with pytest.raises(SystemExit) as exc_info:
+        get_args(monkeypatch, "add", "What is 2 + 2?")
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+
+    assert "prompt and answer are required" in captured.err
+    assert "usage:" in captured.err
+    assert "exercise-library add" in captured.err
+
+
+def test_browse(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args = get_args(
+        monkeypatch,
+        "browse",
+    )
 
     assert args.command == "browse"
     assert args.identifier is None
 
 
-def test_create_parser_parses_browse_identifier() -> None:
-    parser, _ = create_parser()
-
-    args = parser.parse_args(
-        [
-            "browse",
-            "-I",
-            "book::chapter01",
-        ]
+def test_browse_with_identifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args = get_args(
+        monkeypatch,
+        "browse",
+        "--identifier",
+        "math",
     )
 
     assert args.command == "browse"
-    assert args.identifier == "book::chapter01"
+    assert args.identifier == "math"
 
 
-def test_create_parser_accepts_long_browse_identifier_flag() -> None:
-    parser, _ = create_parser()
+def test_command_is_required(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
 
-    args = parser.parse_args(
-        [
-            "browse",
-            "--identifier",
-            "book::chapter01",
-        ]
-    )
+    with pytest.raises(SystemExit) as exc_info:
+        get_args(monkeypatch)
 
-    assert args.command == "browse"
-    assert args.identifier == "book::chapter01"
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+
+    assert "the following arguments are required: command" in captured.err
 
 
-def test_create_parser_rejects_short_browse_identifier_flag() -> None:
-    parser, _ = create_parser()
+def test_unknown_command(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        get_args(monkeypatch, "unknown")
 
-    with pytest.raises(SystemExit):
-        parser.parse_args(
-            [
-                "browse",
-                "-i",
-                "book::chapter01",
-            ]
-        )
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+
+    assert "invalid choice" in captured.err
