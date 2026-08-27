@@ -3,11 +3,11 @@ from pathlib import Path
 
 from exercise_library.config import DATABASE_NAME
 from exercise_library.migrations import migrate
-from exercise_library.paths import data_dir
+from exercise_library.paths import app_data_dir_path
 
 
 def database_path() -> Path:
-    return data_dir() / DATABASE_NAME
+    return app_data_dir_path() / DATABASE_NAME
 
 
 def connect() -> sqlite3.Connection:

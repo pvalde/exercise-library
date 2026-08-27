@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from exercise_library.paths import data_dir
+from exercise_library.paths import app_data_dir_path
 
 
 def test_data_dir_is_isolated(tmp_path: Path) -> None:
-    path = data_dir()
+    path = app_data_dir_path()
 
     assert path == tmp_path / "exercise-library"
     assert path.is_dir()

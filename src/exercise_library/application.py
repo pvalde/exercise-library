@@ -1,7 +1,9 @@
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from uuid import UUID
 
+from exercise_library.backup import BackupError, SQLiteBackupError, create_backup
 from exercise_library.models import Exercise
 from exercise_library.repository import DuplicateIdentifierError, ExerciseRepository
 
@@ -63,3 +65,17 @@ class ExerciseApplication:
         identifier: str | None = None,
     ) -> list[Exercise]:
         return self.repository.browse(identifier)
+
+    def backup_data(
+        self,
+        backup_file_path: Path | None = None,
+    ) -> Path:
+        try:
+            return create_backup(backup_file_path)
+        except SQLiteBackupError as exc:
+            raise ExerciseApplicationError(
+                "Could not create the backup. ",
+                "Make sure the database is accessible and try again.",
+            ) from exc
+        except BackupError as exc:
+            raise ExerciseApplicationError(str(exc)) from exc

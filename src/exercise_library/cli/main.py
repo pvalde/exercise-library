@@ -5,7 +5,8 @@ from logging.handlers import RotatingFileHandler
 from exercise_library.application import ExerciseApplication, ExerciseApplicationError
 from exercise_library.config import APP_NAME
 from exercise_library.database import initialize
-from exercise_library.paths import log_file
+from exercise_library.locking import ApplicationLockTimeout
+from exercise_library.paths import log_file_path
 from exercise_library.repository import ExerciseRepository
 
 from .add_command import AddInteractiveError, add_exercise
@@ -16,9 +17,15 @@ logger = logging.getLogger(__name__)
 
 
 def configure_logging() -> None:
+    root_logger = logging.getLogger()
+
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+        handler.close()
+
     handler = RotatingFileHandler(
-        log_file(),
-        maxBytes=5_000_000,  # 5 MB
+        log_file_path(),
+        maxBytes=5_000_000,
         backupCount=3,
         encoding="utf-8",
     )
@@ -27,11 +34,6 @@ def configure_logging() -> None:
     handler.setFormatter(
         logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     )
-
-    root_logger = logging.getLogger()
-
-    # avoid duplicate log entries if configure_logging() is called again.
-    root_logger.handlers.clear()
 
     root_logger.setLevel(logging.DEBUG)
     root_logger.addHandler(handler)
@@ -58,6 +60,10 @@ def main() -> int:
         elif args.command == "browse":
             browse_exercises(application, args.identifier)
 
+        elif args.command == "backup":
+            output = application.backup_data(args.output)
+            print(f"Backup file: {output}")
+
         logger.info("%s completed successfully.", APP_NAME)
         return 0
 
@@ -66,7 +72,11 @@ def main() -> int:
         print("\nInterrupted.", file=sys.stderr)
         return 130
 
-    except (AddInteractiveError, ExerciseApplicationError) as exc:
+    except (
+        AddInteractiveError,
+        ExerciseApplicationError,
+        ApplicationLockTimeout,
+    ) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
@@ -74,7 +84,7 @@ def main() -> int:
         logger.exception("Unexpected error")
         print(
             "ERROR: An unexpected error occurred.\n",
-            f"See {log_file()} ",
+            f"See {log_file_path()} ",
             file=sys.stderr,
         )
 

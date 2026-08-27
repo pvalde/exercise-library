@@ -2,6 +2,7 @@ import sqlite3
 from datetime import UTC, datetime
 from uuid import UUID, uuid7
 
+from exercise_library.locking import application_lock
 from exercise_library.models import Exercise
 
 
@@ -45,32 +46,33 @@ class ExerciseRepository:
         return datetime.fromtimestamp(value / 1000, tz=UTC)
 
     def add(self, exercise: Exercise) -> UUID:
+        with application_lock():
+            exercise_id = uuid7()
 
-        exercise_id = uuid7()
+            try:
+                self._connection.execute(
+                    """
+                    INSERT INTO exercises
+                    (id, identifier, prompt, answer, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                        """,
+                    (
+                        str(exercise_id),
+                        exercise.identifier,
+                        exercise.prompt,
+                        exercise.answer,
+                        self._to_db_datetime(datetime.now(tz=UTC)),
+                    ),
+                )
+                self._connection.commit()
+            except sqlite3.IntegrityError as error:
+                if "UNIQUE constraint failed: exercises.identifier" in str(error):
+                    raise DuplicateIdentifierError(
+                        f"Exercise identifier already exists: {exercise.identifier!r}"
+                    ) from error
+                raise
 
-        try:
-            self._connection.execute(
-                """
-                INSERT INTO exercises (id, identifier, prompt, answer, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    str(exercise_id),
-                    exercise.identifier,
-                    exercise.prompt,
-                    exercise.answer,
-                    self._to_db_datetime(datetime.now(tz=UTC)),
-                ),
-            )
-            self._connection.commit()
-        except sqlite3.IntegrityError as error:
-            if "UNIQUE constraint failed: exercises.identifier" in str(error):
-                raise DuplicateIdentifierError(
-                    f"Exercise identifier already exists: {exercise.identifier!r}"
-                ) from error
-            raise
-
-        return exercise_id
+            return exercise_id
 
     def list_all(self) -> list[Exercise]:
         cursor = self._connection.execute(
