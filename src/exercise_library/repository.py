@@ -50,22 +50,25 @@ class ExerciseRepository:
         return datetime.fromtimestamp(value / 1000, tz=UTC)
 
     def add(self, exercise: Exercise) -> UUID:
+
         with application_lock():
             exercise_id = uuid7()
 
             try:
+                current_time = datetime.now(tz=UTC)
                 self._connection.execute(
                     """
                     INSERT INTO exercises
-                    (id, identifier, prompt, answer, created_at)
-                    VALUES (?, ?, ?, ?, ?)
+                    (id, identifier, prompt, answer, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
                         """,
                     (
                         str(exercise_id),
                         exercise.identifier,
                         exercise.prompt,
                         exercise.answer,
-                        self._to_db_datetime(datetime.now(tz=UTC)),
+                        self._to_db_datetime(current_time),
+                        self._to_db_datetime(current_time),
                     ),
                 )
                 self._connection.commit()
@@ -97,15 +100,17 @@ class ExerciseRepository:
                 self._connection.execute(
                     """
                     UPDATE exercises
-                    SET identifier = ?,
-                        prompt     = ?,
-                        answer     = ?
+                    SET identifier  = ?,
+                        prompt      = ?,
+                        answer      = ?,
+                        updated_at = ?
                     where id = ?;
                     """,
                     (
                         exercise.identifier,
                         exercise.prompt,
                         exercise.answer,
+                        self._to_db_datetime(datetime.now(tz=UTC)),
                         str(exercise.id),
                     ),
                 )

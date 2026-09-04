@@ -21,7 +21,8 @@ def _migrate_to_v1(connection: sqlite3.Connection) -> None:
             identifier TEXT UNIQUE,
             prompt TEXT NOT NULL,
             answer TEXT NOT NULL,
-            created_at INT NOT NULL
+            created_at INT NOT NULL,
+            updated_at INT NOT NULL
         )
         """
     )

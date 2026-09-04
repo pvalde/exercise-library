@@ -1,4 +1,5 @@
 import sqlite3
+import time
 from pathlib import Path
 from uuid import UUID, uuid7
 
@@ -334,6 +335,56 @@ def test_update_exercise(
     assert row["identifier"] == "updated_exercise"
     assert row["prompt"] == "updated_prompt"
     assert row["answer"] == "updated_answer"
+
+
+def test_update_sets_updated_at_to_a_newer_time(
+    existing_exercise: Exercise,
+) -> None:
+    connection: sqlite3.Connection = initialize()
+
+    original_row: sqlite3.Row | None = connection.execute(
+        """
+        SELECT updated_at
+        FROM exercises
+        WHERE id = ?;
+        """,
+        (str(existing_exercise.id),),
+    ).fetchone()
+
+    assert original_row is not None
+    original_updated_at = original_row["updated_at"]
+
+    assert isinstance(original_updated_at, (int, float))
+
+    # _to_db_datetime stores milliseconds, so wait briefly before updating.
+    time.sleep(0.01)
+
+    updated_exercise = Exercise(
+        id=existing_exercise.id,
+        identifier="updated_exercise",
+        prompt="updated_prompt",
+        answer="updated_answer",
+    )
+
+    result = ExerciseRepository(connection).update(updated_exercise)
+
+    assert result == updated_exercise.id
+
+    updated_row: sqlite3.Row | None = connection.execute(
+        """
+        SELECT updated_at
+        FROM exercises
+        WHERE id = ?;
+        """,
+        (str(existing_exercise.id),),
+    ).fetchone()
+
+    assert updated_row is not None
+
+    updated_updated_at = updated_row["updated_at"]
+
+    assert isinstance(updated_updated_at, (int, float))
+    assert updated_updated_at > original_updated_at
 
 
 def test_update_requires_an_id() -> None:

@@ -20,6 +20,7 @@ def test_migrate_creates_schema() -> None:
         "prompt",
         "answer",
         "created_at",
+        "updated_at",
     ]
 
 
