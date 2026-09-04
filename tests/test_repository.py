@@ -1,11 +1,43 @@
+import sqlite3
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid7
 
 import pytest
 
 from exercise_library.database import initialize
 from exercise_library.models import Exercise
-from exercise_library.repository import DuplicateIdentifierError, ExerciseRepository
+from exercise_library.repository import (
+    DuplicateIdentifierError,
+    ExerciseRepository,
+    InvalidExerciseValues,
+)
+
+# FIXTURES ---------------------------------------------------------------------
+
+
+@pytest.fixture
+def existing_exercise() -> Exercise:
+    connection = initialize()
+
+    exercise = Exercise(
+        prompt="existing_prompt",
+        answer="existing_answer",
+        identifier="existing_exercise",
+    )
+
+    exercise_id = ExerciseRepository(connection).add(exercise)
+
+    exercise = Exercise(
+        id=exercise_id,
+        prompt=exercise.prompt,
+        answer=exercise.answer,
+        identifier=exercise.identifier,
+    )
+
+    return exercise
+
+
+# add --------------------------------------------------------------------------
 
 
 def test_add_exercise(
@@ -97,6 +129,9 @@ def test_cannot_add_duplicate_identifier(
         connection.close()
 
 
+# list -------------------------------------------------------------------------
+
+
 def test_list_all_returns_exercises(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -139,6 +174,9 @@ def test_list_all_returns_exercises(
     assert exercises[0].id is not None
     assert isinstance(exercises[0].id, UUID)
     assert exercises[1].identifier == "book-b::exset::02"
+
+
+# browse -----------------------------------------------------------------------
 
 
 def test_browse_matches_exact_identifier(
@@ -263,3 +301,143 @@ def test_browse_returns_empty_list_when_no_identifier_matches(
         assert exercises == []
     finally:
         connection.close()
+
+
+# update -----------------------------------------------------------------------
+
+
+def test_update_exercise(
+    existing_exercise: Exercise,
+) -> None:
+    updated_exercise = Exercise(
+        id=existing_exercise.id,
+        identifier="updated_exercise",
+        prompt="updated_prompt",
+        answer="updated_answer",
+    )
+
+    connection = initialize()
+    result = ExerciseRepository(connection).update(updated_exercise)
+
+    assert result == updated_exercise.id
+
+    row = connection.execute(
+        """
+        SELECT id, identifier, prompt, answer
+        FROM exercises
+        WHERE id = ?;
+        """,
+        (str(updated_exercise.id),),
+    ).fetchone()
+
+    assert row["id"] == str(updated_exercise.id)
+    assert row["identifier"] == "updated_exercise"
+    assert row["prompt"] == "updated_prompt"
+    assert row["answer"] == "updated_answer"
+
+
+def test_update_requires_an_id() -> None:
+    connection = initialize()
+    repository = ExerciseRepository(connection)
+
+    exercise = Exercise(
+        id=None,
+        identifier="exercise",
+        prompt="prompt",
+        answer="answer",
+    )
+
+    with pytest.raises(
+        InvalidExerciseValues,
+        match="Exercise ID has not been provided",
+    ):
+        repository.update(exercise)
+
+
+def test_update_rejects_unknown_id() -> None:
+    connection = initialize()
+    repository = ExerciseRepository(connection)
+
+    unknown_id = uuid7()
+
+    exercise = Exercise(
+        id=unknown_id,
+        identifier="exercise",
+        prompt="prompt",
+        answer="answer",
+    )
+
+    with pytest.raises(
+        InvalidExerciseValues,
+        match=f"No exercise found with id {unknown_id}",
+    ):
+        repository.update(exercise)
+
+
+def test_update_rejects_duplicate_identifier(
+    existing_exercise: Exercise,
+) -> None:
+    connection = initialize()
+
+    ExerciseRepository(connection).add(
+        Exercise(
+            identifier="other_exercise",
+            prompt="other_prompt",
+            answer="other_answer",
+        )
+    )
+
+    updated_exercise = Exercise(
+        id=existing_exercise.id,
+        identifier="other_exercise",
+        prompt="updated_prompt",
+        answer="updated_answer",
+    )
+
+    with pytest.raises(
+        DuplicateIdentifierError,
+        match="Exercise identifier already exists",
+    ):
+        ExerciseRepository(connection).update(updated_exercise)
+
+
+def test_update_duplicate_identifier_does_not_change_row(
+    existing_exercise: Exercise,
+) -> None:
+    connection: sqlite3.Connection = initialize()
+
+    ExerciseRepository(connection).add(
+        Exercise(
+            identifier="other_exercise",
+            prompt="other_prompt",
+            answer="other_answer",
+        )
+    )
+
+    updated_exercise = Exercise(
+        id=existing_exercise.id,
+        identifier="other_exercise",
+        prompt="updated_prompt",
+        answer="updated_answer",
+    )
+
+    with pytest.raises(
+        DuplicateIdentifierError,
+        match="Exercise identifier already exists",
+    ):
+        ExerciseRepository(connection).update(updated_exercise)
+
+    row: sqlite3.Row | None = connection.execute(
+        """
+        SELECT id, identifier, prompt, answer
+        FROM exercises
+        WHERE id = ?;
+        """,
+        (str(existing_exercise.id),),
+    ).fetchone()
+
+    assert row is not None
+    assert row["id"] == str(existing_exercise.id)
+    assert row["identifier"] == existing_exercise.identifier
+    assert row["prompt"] == existing_exercise.prompt
+    assert row["answer"] == existing_exercise.answer

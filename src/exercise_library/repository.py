@@ -18,6 +18,10 @@ class DuplicateIdentifierError(RepositoryError):
     """Raised when an exercise identifier already exists."""
 
 
+class InvalidExerciseValues(RepositoryError):
+    """Raises when some provided exercise's value is invalid."""
+
+
 class ExerciseRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
@@ -73,6 +77,46 @@ class ExerciseRepository:
                 raise
 
             return exercise_id
+
+    def update(self, exercise: Exercise) -> UUID:
+        if not exercise.id:
+            raise InvalidExerciseValues("Exercise ID has not been provided.")
+
+        with application_lock():
+            row = self._connection.execute(
+                "SELECT 1 FROM exercises WHERE id = ?;",
+                (str(exercise.id),),
+            ).fetchone()
+
+            if row is None:
+                raise InvalidExerciseValues(
+                    f"No exercise found with id {str(exercise.id)}",
+                )
+
+            try:
+                self._connection.execute(
+                    """
+                    UPDATE exercises
+                    SET identifier = ?,
+                        prompt     = ?,
+                        answer     = ?
+                    where id = ?;
+                    """,
+                    (
+                        exercise.identifier,
+                        exercise.prompt,
+                        exercise.answer,
+                        str(exercise.id),
+                    ),
+                )
+                self._connection.commit()
+            except sqlite3.IntegrityError as error:
+                if "UNIQUE constraint failed: exercises.identifier" in str(error):
+                    raise DuplicateIdentifierError(
+                        f"Exercise identifier already exists: {exercise.identifier!r}"
+                    ) from error
+                raise
+            return exercise.id
 
     def list_all(self) -> list[Exercise]:
         cursor = self._connection.execute(
