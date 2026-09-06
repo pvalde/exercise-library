@@ -22,11 +22,17 @@ class InvalidExerciseError(ExerciseApplicationError):
     pass
 
 
+INVALID_IDENTIFIER_MSG = (
+    "Identifier can only contain letters, numbers, "
+    + "dash, underscore, and '::' separators."
+)
+
+
 @dataclass
 class ExerciseApplication:
     repository: ExerciseRepository
 
-    def _valid_identifier(self, identifier: str) -> bool:
+    def _is_valid_identifier(self, identifier: str) -> bool:
         return bool(_IDENTIFIER_PATTERN.fullmatch(identifier))
 
     def add_exercise(
@@ -45,11 +51,8 @@ class ExerciseApplication:
         if not answer.strip():
             raise InvalidExerciseError("Answer cannot be empty.")
 
-        if identifier is not None and not self._valid_identifier(identifier):
-            raise InvalidExerciseError(
-                "Identifier can only contain letters, numbers, "
-                "dash, underscore, and '::' separators."
-            )
+        if identifier is not None and not self._is_valid_identifier(identifier):
+            raise InvalidExerciseError(INVALID_IDENTIFIER_MSG)
 
         exercise = Exercise(
             prompt=prompt,
@@ -89,11 +92,8 @@ class ExerciseApplication:
 
     def update_exercise(self, exercise: Exercise) -> UUID:
 
-        if exercise.identifier and not self._valid_identifier(exercise.identifier):
-            raise InvalidExerciseError(
-                "Identifier can only contain letters, numbers, "
-                "dash, underscore, and '::' separators."
-            )
+        if exercise.identifier and not self._is_valid_identifier(exercise.identifier):
+            raise InvalidExerciseError(INVALID_IDENTIFIER_MSG)
 
         try:
             exercise_id = self.repository.update(exercise)
@@ -107,3 +107,17 @@ class ExerciseApplication:
             ) from exc
 
         return exercise_id
+
+    def get_exercise_by_id(self, id: UUID) -> Exercise:
+        try:
+            return self.repository.get_by_id(id)
+        except InvalidExerciseValues as exc:
+            raise InvalidExerciseError(str(exc)) from exc
+
+    def get_exercise_by_identifier(self, identifier: str) -> Exercise:
+        if not self._is_valid_identifier(identifier):
+            raise InvalidExerciseError(INVALID_IDENTIFIER_MSG)
+        try:
+            return self.repository.get_by_identifier(identifier)
+        except InvalidExerciseValues as exc:
+            raise InvalidExerciseError(str(exc)) from exc

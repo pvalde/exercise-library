@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid7
 
 import pytest
 
@@ -357,3 +357,59 @@ def test_update_exercise_success_with_the_same_identifier(
 
     assert exercise_id is not None
     assert isinstance(exercise_id, UUID)
+
+
+# get_exercise_by_id -----------------------------------------------------------
+
+
+def test_get_exercise_by_id(application: ExerciseApplication) -> None:
+    exercise_id = application.add_exercise(prompt="prompt", answer="answer")
+
+    assert exercise_id is not None
+
+    exercise = application.get_exercise_by_id(exercise_id)
+
+    assert exercise.id == exercise_id
+    assert exercise.prompt == "prompt"
+    assert exercise.answer == "answer"
+
+
+def test_get_exercise_by_id_raises_if_no_exercise(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(InvalidExerciseError):
+        application.get_exercise_by_id(uuid7())
+
+
+# get_exercise_by_identifier ---------------------------------------------------
+
+
+def test_get_exercise_by_identifer(application: ExerciseApplication) -> None:
+    identifier = "exercise1"
+    exercise_id = application.add_exercise(
+        prompt="prompt",
+        answer="answer",
+        identifier=identifier,
+    )
+    assert exercise_id is not None
+
+    exercise = application.get_exercise_by_identifier(identifier)
+
+    assert exercise.id == exercise_id
+    assert exercise.identifier == identifier
+    assert exercise.prompt == "prompt"
+    assert exercise.answer == "answer"
+
+
+def test_get_exercise_by_identifier_raises_if_invalid_identifier(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(InvalidExerciseError, match="Identifier can only contain"):
+        application.get_exercise_by_identifier("invalid identifier")
+
+
+def test_get_exercise_by_identifer_raises_if_non_existent_identifier(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(InvalidExerciseError, match="Exercise not found"):
+        application.get_exercise_by_identifier("non-existent-identifier")
