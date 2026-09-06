@@ -3,7 +3,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from exercise_library.cli.editor import _edit_in_editor, _remove_generated_comments
+from exercise_library.cli.env_editor import (
+    _edit_in_env_editor,
+    _remove_generated_comments,
+)
 
 
 def test_remove_generated_comments() -> None:
@@ -110,7 +113,7 @@ def test_edit_in_editor_uses_visual_over_editor(
 
     fake_launch_editor = Mock()
 
-    _edit_in_editor("prompt", fake_launch_editor)
+    _edit_in_env_editor("prompt", fake_launch_editor)
 
     command = fake_launch_editor.call_args[0]
 
@@ -125,7 +128,7 @@ def test_edit_in_editor_returns_none_if_neither_visual_nor_editor_set(
 
     fake_launch_editor = Mock()
 
-    assert _edit_in_editor("prompt", fake_launch_editor) is None
+    assert _edit_in_env_editor("prompt", fake_launch_editor) is None
 
 
 def test_edit_in_editor_falls_back_to_editor(
@@ -135,7 +138,7 @@ def test_edit_in_editor_falls_back_to_editor(
     monkeypatch.setenv("EDITOR", "my-editor")
 
     fake_launch_editor = Mock()
-    _edit_in_editor("prompt", fake_launch_editor)
+    _edit_in_env_editor("prompt", fake_launch_editor)
 
     command = fake_launch_editor.call_args[0]
 
@@ -150,7 +153,7 @@ def test_edit_in_editor_supports_editor_arguments(
 
     fake_launch_editor = Mock()
 
-    _edit_in_editor("prompt", fake_launch_editor)
+    _edit_in_env_editor("prompt", fake_launch_editor)
 
     command = fake_launch_editor.call_args[0]
 
@@ -172,7 +175,7 @@ def test_edit_in_editor_removes_generated_comments(
             f.write("This is **Markdown**.\n")
         return True
 
-    result = _edit_in_editor("prompt", fake_launch_editor)
+    result = _edit_in_env_editor("prompt", fake_launch_editor)
 
     assert result is not None
 
@@ -190,7 +193,7 @@ def test_edit_in_editor_with_context_removes_generated_comments(
             f.write("This is **Markdown**.\n")
         return True
 
-    result = _edit_in_editor(
+    result = _edit_in_env_editor(
         "prompt",
         fake_launch_editor,
         test_context=(
@@ -215,7 +218,7 @@ def test_edit_in_editor_preserves_other_html_comments(
             f.write("Some content")
         return True
 
-    result = _edit_in_editor("prompt", fake_launch_editor)
+    result = _edit_in_env_editor("prompt", fake_launch_editor)
 
     assert result == "<!-- Keep this comment -->\nSome content"
 
@@ -232,7 +235,7 @@ def test_edit_in_editor_preserves_internal_whitespace(
             )
         return True
 
-    result = _edit_in_editor("prompt", fake_launch_editor)
+    result = _edit_in_env_editor("prompt", fake_launch_editor)
 
     assert result == ("Some content\n    with indentation\n\n  Another paragraph")
 
@@ -254,7 +257,7 @@ def test_edit_in_editor_strips_surrounding_whitespace(
             )
         return True
 
-    result = _edit_in_editor("prompt", fake_launch_editor)
+    result = _edit_in_env_editor("prompt", fake_launch_editor)
 
     assert result == ("Some content  \n    with indentation    \n\n  Another paragraph")
 
@@ -268,7 +271,7 @@ def test_edit_in_editor_raises_when_editor_fails(
         return False
 
     with pytest.raises(RuntimeError, match="Editor exited unsuccessfully"):
-        _edit_in_editor("prompt", fake_launch_editor)
+        _edit_in_env_editor("prompt", fake_launch_editor)
 
 
 def test_edit_in_editor_removes_temp_file_when_editor_fails(
@@ -284,7 +287,7 @@ def test_edit_in_editor_removes_temp_file_when_editor_fails(
         return False
 
     with pytest.raises(RuntimeError, match="Editor exited unsuccessfully"):
-        _edit_in_editor("prompt", fake_launch_editor)
+        _edit_in_env_editor("prompt", fake_launch_editor)
 
     assert file_path is not None
     assert not file_path.exists()
@@ -302,7 +305,71 @@ def test_edit_in_editor_removes_temp_file_on_success(
         file_path = Path(path)
         return True
 
-    _edit_in_editor("prompt", fake_launch_editor)
+    _edit_in_env_editor("prompt", fake_launch_editor)
 
     assert file_path is not None
     assert not file_path.exists()
+
+
+def test_edit_in_env_editor_includes_initial_value_in_return_val(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+
+    monkeypatch.setenv("EDITOR", "editor")
+
+    def fake_launch_editor(editor: str, file_path: Path | str) -> bool:
+        with open(file_path, mode="a", encoding="utf-8") as f:
+            f.write("\nSome extra content.")
+        return True
+
+    iv = "initial_value\n"
+
+    result = _edit_in_env_editor(
+        "prompt",
+        fake_launch_editor,
+        initial_field_value=iv,
+    )
+
+    assert result == (iv + "\nSome extra content.")
+
+
+def test_edit_in_env_editor_removes_initial_value_if_removed_in_return_val(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+
+    monkeypatch.setenv("EDITOR", "editor")
+
+    def fake_launch_editor(editor: str, file_path: Path | str) -> bool:
+        with open(file_path, mode="w", encoding="utf-8") as f:
+            f.write("\nSome extra content.")
+        return True
+
+    iv = "initial_value\n"
+
+    result = _edit_in_env_editor(
+        "prompt",
+        fake_launch_editor,
+        initial_field_value=iv,
+    )
+
+    assert result == ("Some extra content.")
+
+
+def test_edit_in_env_editor_keeps_initial_value_if_no_extra_content_added(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+
+    monkeypatch.setenv("EDITOR", "editor")
+
+    def fake_launch_editor(editor: str, file_path: Path | str) -> bool:
+        return True
+
+    iv = "initial_value\n"
+
+    result = _edit_in_env_editor(
+        "prompt",
+        fake_launch_editor,
+        initial_field_value=iv,
+    )
+
+    assert result == "initial_value"

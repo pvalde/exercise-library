@@ -23,9 +23,10 @@ def _launch_editor(editor: str, file_path: Path | str) -> bool:
         return False
 
 
-def _edit_in_editor(
+def _edit_in_env_editor(
     field_name: str,
     launch_editor: Callable[[str, Path | str], bool],
+    initial_field_value: str | None = None,
     **context: str,
 ) -> str | None:
     """
@@ -43,7 +44,7 @@ def _edit_in_editor(
     prefix = f"<!-- [{APP_NAME}] "
     first_instruction_line = prefix + "-" * (78 - len(prefix)) + "\n"
 
-    initial_content = (
+    initial_edit_context = (
         first_instruction_line
         + f"(Comments starting with '[{APP_NAME}]' will be automatically removed)\n\n"
         f"{'\n\n'.join(formatted_context)}\n\n"
@@ -51,6 +52,11 @@ def _edit_in_editor(
         + "-" * 75
         + "-->\n"
     )
+
+    if initial_field_value:
+        initial_content = initial_edit_context + initial_field_value
+    else:
+        initial_content = initial_edit_context
 
     with tempfile.NamedTemporaryFile(
         mode="w+",
@@ -70,7 +76,7 @@ def _edit_in_editor(
         with open(tf_name, encoding="utf-8") as tf:
             content = tf.read()
 
-            if content.strip() == initial_content.strip():
+            if content.strip() == initial_edit_context.strip():
                 return ""
 
             return _remove_generated_comments(content, APP_NAME).strip()
@@ -80,7 +86,12 @@ def _edit_in_editor(
             os.unlink(tf_name)
 
 
-def edit_in_editor(field_name: str, context: dict[str, str]) -> str | None:
-    return _edit_in_editor(
-        field_name=field_name, launch_editor=_launch_editor, **context
+def edit_in_env_editor(
+    field_name: str, context: dict[str, str], initial_field_value: str | None = None
+) -> str | None:
+    return _edit_in_env_editor(
+        field_name=field_name,
+        launch_editor=_launch_editor,
+        initial_field_value=initial_field_value,
+        **context,
     )
