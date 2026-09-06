@@ -3,13 +3,14 @@ import sys
 from logging.handlers import RotatingFileHandler
 
 from exercise_library.application import ExerciseApplication, ExerciseApplicationError
+from exercise_library.cli.exceptions import CLIError
 from exercise_library.config import APP_NAME
 from exercise_library.database import initialize
 from exercise_library.locking import ApplicationLockTimeout
 from exercise_library.paths import log_file_path
 from exercise_library.repository import ExerciseRepository
 
-from .add_command import AddInteractiveError, add_exercise
+from .add_command import add_exercise
 from .browse_command import browse_exercises
 from .parser import Parser
 
@@ -73,7 +74,7 @@ def main() -> int:
         return 130
 
     except (
-        AddInteractiveError,
+        CLIError,
         ExerciseApplicationError,
         ApplicationLockTimeout,
     ) as exc:

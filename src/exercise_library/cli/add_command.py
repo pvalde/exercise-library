@@ -6,9 +6,10 @@ from prompt_toolkit import prompt as tk_prompt
 from exercise_library.application import ExerciseApplication
 
 from .env_editor import edit_in_env_editor
+from .exceptions import CLIError
 
 
-class AddInteractiveError(Exception):
+class AddInteractiveError(CLIError):
     pass
 
 
@@ -56,8 +57,9 @@ def add_exercise(
     application: ExerciseApplication,
     args: argparse.Namespace,
 ) -> None:
-    """
-    Returns None if either exercise's prompt and exercise's answer is not
-    provided and therefore the exercise was not added to the library.
-    """
-    return _add_exercise(application, args, edit_in_env_editor, _identifier_prompt)
+    return _add_exercise(
+        application,
+        args,
+        edit_in_env_editor,
+        _identifier_prompt,
+    )
