@@ -245,3 +245,115 @@ def test_add_exercise_allows_identifier_to_be_none(
     )
 
     assert exercise_id is not None
+
+
+# update_exercise --------------------------------------------------------------
+
+
+def test_update_exercise_success(application: ExerciseApplication) -> None:
+    existing_exercise_id = application.add_exercise(
+        prompt="prompt",
+        answer="answer",
+    )
+
+    updated_exercise = Exercise(
+        id=existing_exercise_id,
+        identifier="updated-exercise",
+        prompt="updated prompt",
+        answer="updated answer",
+    )
+
+    updated_exercise_id = application.update_exercise(updated_exercise)
+
+    assert existing_exercise_id == updated_exercise_id
+
+    exercises = application.browse_exercises(identifier="updated-exercise")
+
+    assert exercises[0].id == updated_exercise_id
+    assert exercises[0].identifier == "updated-exercise"
+    assert exercises[0].prompt == "updated prompt"
+    assert exercises[0].answer == "updated answer"
+
+
+def test_update_exercise_raises_if_invalid_identifier(
+    application: ExerciseApplication,
+) -> None:
+    existing_exercise_id = application.add_exercise(
+        prompt="prompt",
+        answer="answer",
+    )
+
+    updated_exercise = Exercise(
+        id=existing_exercise_id,
+        identifier="invalid identifier",
+        prompt="updated prompt",
+        answer="updated answer",
+    )
+
+    with pytest.raises(
+        InvalidExerciseError,
+        match="Identifier can only contain letters, numbers, dash, underscore"
+        + ", and '::' separators.",
+    ):
+        application.update_exercise(updated_exercise)
+
+
+def test_update_exercise_raises_if_non_existent_id(
+    application: ExerciseApplication,
+) -> None:
+    exercise = Exercise(prompt="prompt", answer="answer")
+    with pytest.raises(InvalidExerciseError, match="No exercise found with id"):
+        application.update_exercise(exercise)
+
+
+def test_update_exercise_raises_if_existing_identifier(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(
+        identifier="exercise1",
+        prompt="prompt1",
+        answer="answer1",
+    )
+
+    exercise2_id = application.add_exercise(
+        identifier="exercise2",
+        prompt="prompt2",
+        answer="answer2",
+    )
+
+    assert len(application.browse_exercises()) == 2
+
+    updated_exercise2 = Exercise(
+        id=exercise2_id,
+        identifier="exercise1",
+        prompt="updated prompt2",
+        answer="updated answer2",
+    )
+
+    with pytest.raises(
+        InvalidExerciseError,
+        match=f"Exercise identifier already exists: {updated_exercise2.identifier}",
+    ):
+        application.update_exercise(updated_exercise2)
+
+
+def test_update_exercise_success_with_the_same_identifier(
+    application: ExerciseApplication,
+) -> None:
+    exercise_id = application.add_exercise(
+        identifier="exercise1",
+        prompt="prompt1",
+        answer="answer1",
+    )
+
+    updated_exercise = Exercise(
+        id=exercise_id,
+        identifier="exercise1",
+        prompt="updated_prompt",
+        answer="updated_answer",
+    )
+
+    exercise_id = application.update_exercise(updated_exercise)
+
+    assert exercise_id is not None
+    assert isinstance(exercise_id, UUID)

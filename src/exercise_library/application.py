@@ -5,7 +5,11 @@ from uuid import UUID
 
 from exercise_library.backup import BackupError, SQLiteBackupError, create_backup
 from exercise_library.models import Exercise
-from exercise_library.repository import DuplicateIdentifierError, ExerciseRepository
+from exercise_library.repository import (
+    DuplicateIdentifierError,
+    ExerciseRepository,
+    InvalidExerciseValues,
+)
 
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9_-]+(?:::[A-Za-z0-9_-]+)*$")
 
@@ -21,6 +25,9 @@ class InvalidExerciseError(ExerciseApplicationError):
 @dataclass
 class ExerciseApplication:
     repository: ExerciseRepository
+
+    def _valid_identifier(self, identifier: str) -> bool:
+        return bool(_IDENTIFIER_PATTERN.fullmatch(identifier))
 
     def add_exercise(
         self,
@@ -38,7 +45,7 @@ class ExerciseApplication:
         if not answer.strip():
             raise InvalidExerciseError("Answer cannot be empty.")
 
-        if identifier is not None and not _IDENTIFIER_PATTERN.fullmatch(identifier):
+        if identifier is not None and not self._valid_identifier(identifier):
             raise InvalidExerciseError(
                 "Identifier can only contain letters, numbers, "
                 "dash, underscore, and '::' separators."
@@ -79,3 +86,24 @@ class ExerciseApplication:
             ) from exc
         except BackupError as exc:
             raise ExerciseApplicationError(str(exc)) from exc
+
+    def update_exercise(self, exercise: Exercise) -> UUID:
+
+        if exercise.identifier and not self._valid_identifier(exercise.identifier):
+            raise InvalidExerciseError(
+                "Identifier can only contain letters, numbers, "
+                "dash, underscore, and '::' separators."
+            )
+
+        try:
+            exercise_id = self.repository.update(exercise)
+        except InvalidExerciseValues as exc:
+            raise InvalidExerciseError(
+                f"No exercise found with id {str(exercise.id)}"
+            ) from exc
+        except DuplicateIdentifierError as exc:
+            raise InvalidExerciseError(
+                f"Exercise identifier already exists: {exercise.identifier}"
+            ) from exc
+
+        return exercise_id
