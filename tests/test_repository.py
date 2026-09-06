@@ -492,3 +492,67 @@ def test_update_duplicate_identifier_does_not_change_row(
     assert row["identifier"] == existing_exercise.identifier
     assert row["prompt"] == existing_exercise.prompt
     assert row["answer"] == existing_exercise.answer
+
+
+# get --------------------------------------------------------------------------
+
+
+def test_get_by_identifier_returns_exercise(
+    existing_exercise: Exercise,
+) -> None:
+    connection = initialize()
+
+    assert existing_exercise.identifier is not None
+    result = ExerciseRepository(connection).get_by_identifier(
+        existing_exercise.identifier
+    )
+
+    assert result.id == existing_exercise.id
+    assert result.prompt == existing_exercise.prompt
+    assert result.answer == existing_exercise.answer
+    assert result.identifier == existing_exercise.identifier
+
+
+def test_get_by_identifier_raises_when_exercise_does_not_exists(
+    existing_exercise: Exercise,
+) -> None:
+    with pytest.raises(InvalidExerciseValues, match="Exercise not found"):
+        connection = initialize()
+        ExerciseRepository(connection).get_by_identifier("non-existent-identifier")
+
+
+def test_get_by_id_returns_exercise(
+    existing_exercise: Exercise,
+) -> None:
+    connection = initialize()
+
+    assert existing_exercise.id is not None
+    result = ExerciseRepository(connection).get_by_id(existing_exercise.id)
+
+    assert result.id == existing_exercise.id
+    assert result.prompt == existing_exercise.prompt
+    assert result.answer == existing_exercise.answer
+    assert result.identifier == existing_exercise.identifier
+
+
+def test_get_by_id_raises_when_exercise_does_not_exists(
+    existing_exercise: Exercise,
+) -> None:
+    with pytest.raises(InvalidExerciseValues, match="Exercise not found"):
+        connection = initialize()
+        ExerciseRepository(connection).get_by_identifier(str(uuid7()))
+
+
+def test_get_by_identifier_and_get_by_id_return_same_exercise(
+    existing_exercise: Exercise,
+) -> None:
+
+    assert existing_exercise.id is not None
+    assert existing_exercise.identifier is not None
+
+    connection = initialize()
+    repo = ExerciseRepository(connection)
+    by_identifier = repo.get_by_identifier(existing_exercise.identifier)
+    by_id = repo.get_by_id(existing_exercise.id)
+
+    assert by_identifier == by_id

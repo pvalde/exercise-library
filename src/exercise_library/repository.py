@@ -42,7 +42,8 @@ class ExerciseRepository:
     @staticmethod
     def _from_db_datetime(value: int) -> datetime:
         """
-        Convert a Unix timestamp in milliseconds to a timezone-aware UTC datetime.
+        Convert a Unix timestamp in milliseconds to a timezone-aware UTC
+        datetime.
 
         The value is expected to represent the number of milliseconds since the
         Unix epoch (1970-01-01 00:00:00 UTC).
@@ -50,7 +51,6 @@ class ExerciseRepository:
         return datetime.fromtimestamp(value / 1000, tz=UTC)
 
     def add(self, exercise: Exercise) -> UUID:
-
         with application_lock():
             exercise_id = uuid7()
 
@@ -104,7 +104,7 @@ class ExerciseRepository:
                         prompt      = ?,
                         answer      = ?,
                         updated_at = ?
-                    where id = ?;
+                    WHERE id = ?;
                     """,
                     (
                         exercise.identifier,
@@ -171,3 +171,46 @@ class ExerciseRepository:
             )
             for row in cursor.fetchall()
         ]
+
+    def get_by_identifier(self, identifier: str) -> Exercise:
+        cursor = self._connection.execute(
+            """
+            SELECT id, identifier, prompt, answer
+            FROM exercises
+            WHERE identifier = ?;
+            """,
+            (identifier,),
+        )
+
+        row = cursor.fetchone()
+
+        if row is None:
+            raise InvalidExerciseValues(f"Exercise not found: {identifier}")
+        return Exercise(
+            id=UUID(row["id"]),
+            identifier=row["identifier"],
+            prompt=row["prompt"],
+            answer=row["answer"],
+        )
+
+    def get_by_id(self, id: UUID) -> Exercise:
+        cursor = self._connection.execute(
+            """
+            SELECT id, identifier, prompt, answer
+            FROM exercises
+            WHERE id = ?;
+            """,
+            (str(id),),
+        )
+
+        row = cursor.fetchone()
+
+        if row is None:
+            raise InvalidExerciseValues(f"Exercise not found: {str(id)}.")
+
+        return Exercise(
+            id=UUID(row["id"]),
+            identifier=row["identifier"],
+            prompt=row["prompt"],
+            answer=row["answer"],
+        )
