@@ -28,6 +28,13 @@ INVALID_IDENTIFIER_MSG = (
 )
 
 
+def invalid_identifier_msg(identifier: str) -> str:
+    return (
+        f"'{identifier}' is an invalid identifier.\nIt can only contain "
+        + "letters, numbers, dash, underscore and '::' separators."
+    )
+
+
 @dataclass
 class ExerciseApplication:
     repository: ExerciseRepository
@@ -52,7 +59,7 @@ class ExerciseApplication:
             raise InvalidExerciseError("Answer cannot be empty.")
 
         if identifier is not None and not self._is_valid_identifier(identifier):
-            raise InvalidExerciseError(INVALID_IDENTIFIER_MSG)
+            raise InvalidExerciseError(invalid_identifier_msg(identifier))
 
         exercise = Exercise(
             prompt=prompt,
@@ -93,7 +100,7 @@ class ExerciseApplication:
     def update_exercise(self, exercise: Exercise) -> UUID:
 
         if exercise.identifier and not self._is_valid_identifier(exercise.identifier):
-            raise InvalidExerciseError(INVALID_IDENTIFIER_MSG)
+            raise InvalidExerciseError(invalid_identifier_msg(exercise.identifier))
 
         try:
             exercise_id = self.repository.update(exercise)
@@ -116,7 +123,7 @@ class ExerciseApplication:
 
     def get_exercise_by_identifier(self, identifier: str) -> Exercise:
         if not self._is_valid_identifier(identifier):
-            raise InvalidExerciseError(INVALID_IDENTIFIER_MSG)
+            raise InvalidExerciseError(invalid_identifier_msg(identifier))
         try:
             return self.repository.get_by_identifier(identifier)
         except InvalidExerciseValues as exc:

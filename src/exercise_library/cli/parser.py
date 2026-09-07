@@ -1,4 +1,5 @@
 import argparse
+from collections.abc import Iterable
 from pathlib import Path
 
 import shtab
@@ -8,75 +9,116 @@ from exercise_library.config import APP_NAME
 
 class Parser:
     def __init__(self) -> None:
-        self.parser = argparse.ArgumentParser(
+        self._parser = argparse.ArgumentParser(
             description="Manage your exercise library.",
         )
 
-        subparsers = self.parser.add_subparsers(dest="command", required=True)
+        subparsers = self._parser.add_subparsers(dest="command", required=True)
+
+        # ----------------------------------------------------------------------
+        # Add command
 
         add_description = (
             "Add a new exercise. Provide prompt and answer, or use --interactive."
         )
 
-        self.add_parser = subparsers.add_parser(
+        self._add_parser = subparsers.add_parser(
             "add",
             help=add_description,
             description=add_description,
         )
 
-        self.add_parser.add_argument(
+        self._add_parser.add_argument(
             "prompt",
             nargs="?",
             type=str,
             help="The exercise prompt",
         )
 
-        self.add_parser.add_argument(
+        self._add_parser.add_argument(
             "answer",
             nargs="?",
             type=str,
             help="The exercise answer",
         )
 
-        self.add_parser.add_argument(
+        self._add_parser.add_argument(
             "-i",
             "--interactive",
             action="store_true",
             help="Open markdown editor for prompt and answer",
         )
 
-        self.add_parser.add_argument(
+        self._add_parser.add_argument(
             "-I",
             "--identifier",
             type=str,
             help="Optional identifier for the exercise",
         )
 
-        self.browse_parser = subparsers.add_parser(
+        # ----------------------------------------------------------------------
+        # Browse command
+
+        self._browse_parser = subparsers.add_parser(
             "browse",
             help="List all exercises",
         )
 
-        self.browse_parser.add_argument(
+        self._browse_parser.add_argument(
             "-I",
             "--identifier",
             type=str,
             help="Browse exercises under this identifier prefix",
         )
 
-        self.backup_parser = subparsers.add_parser(
+        # ----------------------------------------------------------------------
+        # Backup command
+
+        self._backup_parser = subparsers.add_parser(
             "backup",
             help=f"Create a backup of {APP_NAME}'s user data",
         )
 
-        self.backup_parser.add_argument(
+        self._backup_parser.add_argument(
             "--output",
             "-o",
             type=self._backup_path,
             help="Path to backup file (must end with '.zip')",
         )
 
-        shtab.add_argument_to(self.parser)
+        # ----------------------------------------------------------------------
+        # edit command
+        self._edit_parser = subparsers.add_parser(
+            "edit", help="Edit an exercise. Provide identifier or id."
+        )
+
+        self._edit_parser.add_argument(
+            "-I",
+            "--identifier",
+            type=str,
+        )
+
+        self._edit_parser.add_argument(
+            "--id",
+            type=str,
+        )
+
+        self._edit_parser.add_argument(
+            "--new-prompt",
+            type=str,
+        )
+
+        self._edit_parser.add_argument(
+            "--new-answer",
+            type=str,
+        )
+
+        self._edit_parser.add_argument(
+            "--new-identifier",
+            type=str,
+        )
+
+        shtab.add_argument_to(self._parser)
 
     def _validate_add_args(
         self,
@@ -84,7 +126,7 @@ class Parser:
     ) -> argparse.Namespace:
         if args.command == "add":
             if not args.interactive and (args.prompt is None or args.answer is None):
-                self.add_parser.error(
+                self._add_parser.error(
                     "prompt and answer are required unless --interactive is specified"
                 )
             elif args.interactive:
@@ -93,11 +135,22 @@ class Parser:
 
         return args
 
+    def _validate_edit_args(self, args: argparse.Namespace) -> argparse.Namespace:
+        if args.command == "edit" and (not args.id and not args.identifier):
+            self._add_parser.error(
+                "at least 'id' or 'identifier' must be provided.",
+            )
+
+        return args
+
     def get_args(
         self,
+        args: Iterable[str] | None = None,
+        namespace: None = None,
     ) -> argparse.Namespace:
-        args = self.parser.parse_args()
-        return self._validate_add_args(args)
+        args = self._parser.parse_args(args, namespace)
+        args = self._validate_add_args(args)
+        return self._validate_edit_args(args)
 
     def _backup_path(self, value: str) -> Path:
         path = Path(value).expanduser()

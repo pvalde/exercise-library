@@ -225,8 +225,9 @@ def test_add_exercise_rejects_invalid_identifier(
 ) -> None:
     with pytest.raises(
         InvalidExerciseError,
-        match="Identifier can only contain letters, numbers, dash,"
-        + " underscore, and '::' separators.",
+        match=f"'{identifier}' is an invalid identifier."
+        + "\nIt can only contain letters, numbers, dash,"
+        + " underscore and '::' separators.",
     ):
         application.add_exercise(
             prompt="What is Python?",
@@ -292,8 +293,9 @@ def test_update_exercise_raises_if_invalid_identifier(
 
     with pytest.raises(
         InvalidExerciseError,
-        match="Identifier can only contain letters, numbers, dash, underscore"
-        + ", and '::' separators.",
+        match="'invalid identifier' is an invalid identifier."
+        + "\nIt can only contain letters, numbers, dash, underscore"
+        + " and '::' separators.",
     ):
         application.update_exercise(updated_exercise)
 
@@ -404,7 +406,10 @@ def test_get_exercise_by_identifer(application: ExerciseApplication) -> None:
 def test_get_exercise_by_identifier_raises_if_invalid_identifier(
     application: ExerciseApplication,
 ) -> None:
-    with pytest.raises(InvalidExerciseError, match="Identifier can only contain"):
+    with pytest.raises(
+        InvalidExerciseError,
+        match="'invalid identifier' is an invalid identifier.\nIt can only contain",
+    ):
         application.get_exercise_by_identifier("invalid identifier")
 
 
