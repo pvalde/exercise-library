@@ -17,7 +17,7 @@ class Parser:
 
         # ----------------------------------------------------------------------
         # Add command
-
+        # ----------------------------------------------------------------------
         add_description = (
             "Add a new exercise. Provide prompt and answer, or use --interactive."
         )
@@ -58,7 +58,7 @@ class Parser:
 
         # ----------------------------------------------------------------------
         # Browse command
-
+        # ----------------------------------------------------------------------
         self._browse_parser = subparsers.add_parser(
             "browse",
             help="List all exercises",
@@ -73,7 +73,7 @@ class Parser:
 
         # ----------------------------------------------------------------------
         # Backup command
-
+        # ----------------------------------------------------------------------
         self._backup_parser = subparsers.add_parser(
             "backup",
             help=f"Create a backup of {APP_NAME}'s user data",
@@ -87,7 +87,8 @@ class Parser:
         )
 
         # ----------------------------------------------------------------------
-        # edit command
+        # Edit command
+        # ----------------------------------------------------------------------
         self._edit_parser = subparsers.add_parser(
             "edit", help="Edit an exercise. Provide identifier or id."
         )
@@ -118,6 +119,13 @@ class Parser:
             type=str,
         )
 
+        self._edit_parser.add_argument(
+            "--interactive",
+            "-i",
+            action="store_true",
+            help="Open markdown editor for prompt and answer",
+        )
+
         shtab.add_argument_to(self._parser)
 
     def _validate_add_args(
@@ -136,10 +144,15 @@ class Parser:
         return args
 
     def _validate_edit_args(self, args: argparse.Namespace) -> argparse.Namespace:
-        if args.command == "edit" and (not args.id and not args.identifier):
-            self._add_parser.error(
-                "at least 'id' or 'identifier' must be provided.",
-            )
+        if args.command == "edit":
+            if not args.id and not args.identifier:
+                self._add_parser.error(
+                    "at least 'id' or 'identifier' must be provided.",
+                )
+            if args.interactive:
+                args.new_prompt = None
+                args.new_answer = None
+                args.new_identifier = None
 
         return args
 

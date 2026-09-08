@@ -348,7 +348,7 @@ def test_edit_command_gets_args() -> None:
             "--new-answer",
             "new answer",
             "--new-identifier",
-            "new identifier",
+            "new-identifier",
         ]
     )
 
@@ -356,4 +356,30 @@ def test_edit_command_gets_args() -> None:
     assert args.identifier == "identifier"
     assert args.new_prompt == "new prompt"
     assert args.new_answer == "new answer"
-    assert args.new_identifier == "new identifier"
+    assert args.new_identifier == "new-identifier"
+
+
+def test_edit_command_interactive_ignores_new_content_cli_args() -> None:
+    args = Parser().get_args(
+        [
+            "edit",
+            "--interactive",
+            "-I",
+            "identifier",
+            "--id",
+            "id",
+            "--new-prompt",
+            "new prompt",
+            "--new-answer",
+            "new answer",
+            "--new-identifier",
+            "new-identifier",
+        ]
+    )
+
+    assert args.interactive
+    assert args.identifier == "identifier"
+    assert args.id == "id"
+    assert args.new_prompt is None
+    assert args.new_answer is None
+    assert args.new_identifier is None

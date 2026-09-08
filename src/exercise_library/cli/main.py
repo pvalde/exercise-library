@@ -12,7 +12,7 @@ from exercise_library.repository import ExerciseRepository
 
 from .add_command import add_exercise
 from .browse_command import browse_exercises
-from .edit_command import edit_exercise
+from .edit_command import edit_exercise, edit_exercise_env_editor
 from .parser import Parser
 
 logger = logging.getLogger(__name__)
@@ -67,15 +67,23 @@ def main() -> int:
             print(f"Backup file: {output}")
 
         elif args.command == "edit":
-            edit_exercise(
-                application=application,
-                exercise_id=args.id,
-                identifier=args.identifier,
-                new_prompt=args.new_prompt,
-                new_answer=args.new_answer,
-                new_identifier=args.new_identifier,
-            )
-            print("The exercise has been successfully edited.")
+            if args.interactive:
+                edit_exercise_env_editor(
+                    application=application,
+                    exercise_id=args.id,
+                    identifier=args.identifier,
+                )
+                print("The exercise has been successfully edited.")
+            else:
+                edit_exercise(
+                    application=application,
+                    exercise_id=args.id,
+                    identifier=args.identifier,
+                    new_prompt=args.new_prompt,
+                    new_answer=args.new_answer,
+                    new_identifier=args.new_identifier,
+                )
+                print("The exercise has been successfully edited.")
 
         logger.info("%s completed successfully.", APP_NAME)
         return 0
