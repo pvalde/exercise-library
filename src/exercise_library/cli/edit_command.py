@@ -1,12 +1,10 @@
 from collections.abc import Callable
 from uuid import UUID
 
-from prompt_toolkit import prompt as tk_prompt
-
 from exercise_library.application import ExerciseApplication
 from exercise_library.models import Exercise
 
-from .env_editor import edit_in_env_editor
+from .env_editor import edit_in_env_editor, inline_prompt
 from .exceptions import CLIError
 
 
@@ -31,20 +29,6 @@ def _get_exercise(
     return exercise
 
 
-def _identifier_prompt(identifier: str | None) -> str | None:
-    msg = "Identifier (optional): "
-    answer = (
-        tk_prompt(
-            msg,
-            default=identifier,
-        )
-        if identifier
-        else tk_prompt(msg)
-    )
-
-    return answer.strip() if answer.strip() != "" else None
-
-
 def edit_exercise(
     application: ExerciseApplication,
     exercise_id: UUID | None = None,
@@ -67,14 +51,16 @@ def edit_exercise(
 
 def _edit_exercise_env_editor(
     application: ExerciseApplication,
-    identifier_prompt: Callable[[str | None], str | None],
+    identifier_prompt: Callable[[str, str | None], str | None],
     editor_launcher: Callable[[str, dict[str, str], str | None], str | None],
     exercise_id: UUID | None = None,
     identifier: str | None = None,
 ) -> None:
     exercise = _get_exercise(application, exercise_id, identifier)
 
-    new_identifier: str | None = identifier_prompt(exercise.identifier)
+    new_identifier: str | None = identifier_prompt(
+        "Identifier (optional): ", exercise.identifier
+    )
 
     new_exercise_prompt: str | None = editor_launcher(
         "prompt",
@@ -109,7 +95,7 @@ def edit_exercise_env_editor(
 
     return _edit_exercise_env_editor(
         application=application,
-        identifier_prompt=_identifier_prompt,
+        identifier_prompt=inline_prompt,
         editor_launcher=edit_in_env_editor,
         exercise_id=exercise_id,
         identifier=identifier,

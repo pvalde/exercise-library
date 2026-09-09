@@ -164,7 +164,7 @@ def test_edit_ex_env_success_if_at_least_exercise_id_is_provided() -> None:
         side_effect=fake_get_exercise_by_id
     )
 
-    def fake_identifier_prompt(identifier: str | None) -> str | None:
+    def fake_identifier_prompt(msg: str, identifier: str | None) -> str | None:
         return "identifier"
 
     def fake_editor_launcher(
@@ -209,7 +209,7 @@ def test_edit_ex_env_success_if_at_least_exercise_identifier_is_provided() -> No
         side_effect=fake_get_exercise_by_identifier
     )
 
-    def fake_identifier_prompt(identifier: str | None) -> str | None:
+    def fake_identifier_prompt(msg: str, identifier: str | None) -> str | None:
         return "identifier"
 
     def fake_editor_launcher(
@@ -244,7 +244,7 @@ def test_edit_ex_env_uses_id_over_identifier() -> None:
     application.get_exercise_by_id = Mock()
     application.get_exercise_by_identifier = Mock()
 
-    def fake_identifier_prompt(identifier: str | None) -> str | None:
+    def fake_identifier_prompt(msg: str, identifier: str | None) -> str | None:
         return "identifier"
 
     def fake_editor_launcher(
@@ -282,7 +282,7 @@ def test_edit_ex_env_updates_provided_fields() -> None:
         side_effect=fake_get_exercise_by_id
     )
 
-    def fake_identifier_prompt(identifier: str | None) -> str | None:
+    def fake_identifier_prompt(msg: str, identifier: str | None) -> str | None:
         return "new_identifier"
 
     def fake_editor_launcher(

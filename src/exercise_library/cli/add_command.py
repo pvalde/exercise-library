@@ -1,11 +1,9 @@
 import argparse
 from collections.abc import Callable
 
-from prompt_toolkit import prompt as tk_prompt
-
 from exercise_library.application import ExerciseApplication
 
-from .env_editor import edit_in_env_editor
+from .env_editor import edit_in_env_editor, inline_prompt
 from .exceptions import CLIError
 
 
@@ -13,21 +11,16 @@ class AddInteractiveError(CLIError):
     pass
 
 
-def _identifier_prompt() -> str | None:
-    answer = tk_prompt("Identifier (optional): ")
-    return answer.strip() if answer.strip() != "" else None
-
-
 def _add_exercise(
     application: ExerciseApplication,
     args: argparse.Namespace,
     editor: Callable[[str, dict[str, str]], str | None],
-    identifier_prompt: Callable[[], str | None],
+    identifier_prompt: Callable[[str], str | None],
 ) -> None:
     if args.interactive:
         exercise_identifier = args.identifier
         if exercise_identifier is None:
-            exercise_identifier = identifier_prompt()
+            exercise_identifier = identifier_prompt("Identifier (optional): ")
 
         exercise_prompt = editor("prompt", {"identifier": exercise_identifier})
 
@@ -61,5 +54,5 @@ def add_exercise(
         application,
         args,
         edit_in_env_editor,
-        _identifier_prompt,
+        inline_prompt,
     )

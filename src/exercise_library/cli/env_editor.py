@@ -6,6 +6,8 @@ import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
+from prompt_toolkit import prompt as tk_prompt
+
 from exercise_library.config import APP_NAME
 
 
@@ -95,3 +97,16 @@ def edit_in_env_editor(
         initial_field_value=initial_field_value,
         **context,
     )
+
+
+def inline_prompt(msg: str, initial_value: str | None = None) -> str | None:
+    answer = (
+        tk_prompt(
+            msg,
+            default=initial_value,
+        )
+        if initial_value
+        else tk_prompt(msg)
+    )
+
+    return answer.strip() if answer.strip() != "" else None
