@@ -145,10 +145,20 @@ class Parser:
 
     def _validate_edit_args(self, args: argparse.Namespace) -> argparse.Namespace:
         if args.command == "edit":
-            if not args.id and not args.identifier:
-                self._add_parser.error(
-                    "at least 'id' or 'identifier' must be provided.",
-                )
+            if not args.interactive:
+                if not args.id and not args.identifier:
+                    self._edit_parser.error(
+                        "at least 'id' or 'identifier' must be provided.",
+                    )
+                if (
+                    args.new_prompt is None
+                    and args.new_answer is None
+                    and args.new_identifier is None
+                ):
+                    self._edit_parser.error(
+                        "Please provide at least one of: "
+                        + "'new prompt', 'new answer', or 'new identifier'."
+                    )
             if args.interactive:
                 args.new_prompt = None
                 args.new_answer = None

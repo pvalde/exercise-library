@@ -317,21 +317,51 @@ def test_edit_command_requires_id_or_identifier(
     assert "at least 'id' or 'identifier' must be provided." in captured.err
 
 
+def test_edit_command_raise_if_no_new_field_is_provided(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["edit", "-I", "identifier"])
+
+    assert exc_info.value.code == 2
+
+    assert (
+        "Please provide at least one of: "
+        + "'new prompt', 'new answer', or 'new identifier'."
+    )
+
+
 def test_edit_command_turns_non_provided_args_into_none() -> None:
-    args = Parser().get_args(["edit", "--id", "id"])
+    args = Parser().get_args(
+        [
+            "edit",
+            "--id",
+            "id",
+            "--new-prompt",
+            "new prompt",
+        ]
+    )
 
     assert args.id == "id"
     assert args.identifier is None
-    assert args.new_prompt is None
+    assert args.new_prompt == "new prompt"
     assert args.new_answer is None
     assert args.new_identifier is None
 
-    args = Parser().get_args(["edit", "--identifier", "identifier"])
+    args = Parser().get_args(
+        [
+            "edit",
+            "--identifier",
+            "identifier",
+            "--new-answer",
+            "new answer",
+        ]
+    )
 
     assert args.id is None
     assert args.identifier == "identifier"
     assert args.new_prompt is None
-    assert args.new_answer is None
+    assert args.new_answer == "new answer"
     assert args.new_identifier is None
 
 
