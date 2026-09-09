@@ -26,6 +26,18 @@ def test_add_with_prompt_and_answer() -> None:
     assert args.identifier is None
 
 
+def test_add_with_prompt_answer_and_identifier() -> None:
+    args = Parser().get_args(
+        ["add", "What is 2 + 2?", "4", "--identifier", "exercise1"]
+    )
+
+    assert args.command == "add"
+    assert args.prompt == "What is 2 + 2?"
+    assert args.answer == "4"
+    assert args.interactive is False
+    assert args.identifier == "exercise1"
+
+
 def test_add_interactive() -> None:
 
     args = Parser().get_args(
@@ -42,7 +54,7 @@ def test_add_interactive() -> None:
     assert args.identifier is None
 
 
-def test_add_interactive_ignores_prompt_and_answer() -> None:
+def test_add_interactive_ignores_prompt_answer_and_identifier() -> None:
 
     args = Parser().get_args(
         [
@@ -50,14 +62,16 @@ def test_add_interactive_ignores_prompt_and_answer() -> None:
             "--interactive",
             "prompt content",
             "answer content",
+            "--identifier",
+            "identifier",
         ]
     )
 
     assert args.command == "add"
     assert args.prompt is None
     assert args.answer is None
-    assert args.interactive is True
     assert args.identifier is None
+    assert args.interactive is True
 
 
 def test_add_with_identifier() -> None:
@@ -79,7 +93,7 @@ def test_add_with_identifier() -> None:
     assert args.identifier == "math"
 
 
-def test_add_missing_prompt(
+def test_add_missing_prompt_raises(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
 
@@ -100,7 +114,7 @@ def test_add_missing_prompt(
     assert "add" in captured.err
 
 
-def test_add_missing_answer(
+def test_add_missing_answer_raises(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
 
@@ -109,6 +123,25 @@ def test_add_missing_answer(
             [
                 "add",
                 "What is 2 + 2?",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+
+    assert "prompt and answer are required" in captured.err
+    assert "usage:" in captured.err
+    assert "add" in captured.err
+
+
+def test_add_missing_prompt_and_answer_raises(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(
+            [
+                "add",
             ]
         )
 

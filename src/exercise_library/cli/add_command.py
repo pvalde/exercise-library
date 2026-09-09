@@ -1,4 +1,3 @@
-import argparse
 from collections.abc import Callable
 
 from exercise_library.application import ExerciseApplication
@@ -11,33 +10,33 @@ class AddInteractiveError(CLIError):
     pass
 
 
-def _add_exercise(
+def _add_exercise_in_env_editor(
     application: ExerciseApplication,
-    args: argparse.Namespace,
-    editor: Callable[[str, dict[str, str]], str | None],
+    editor_launcher: Callable[[str, dict[str, str]], str | None],
     identifier_prompt: Callable[[str], str | None],
 ) -> None:
-    if args.interactive:
-        exercise_identifier = args.identifier
-        if exercise_identifier is None:
-            exercise_identifier = identifier_prompt("Identifier (optional): ")
+    exercise_identifier: str | None = identifier_prompt("Identifier (optional): ")
 
-        exercise_prompt = editor("prompt", {"identifier": exercise_identifier})
+    exercise_prompt = editor_launcher(
+        "prompt",
+        {"identifier": exercise_identifier if exercise_identifier is not None else ""},
+    )
 
-        if exercise_prompt is None or not exercise_prompt.strip():
-            raise AddInteractiveError("Prompt cannot be empty.")
+    if exercise_prompt is None or not exercise_prompt.strip():
+        raise AddInteractiveError("Prompt cannot be empty.")
 
-        exercise_answer = editor(
-            "answer", {"identifier": exercise_identifier, "prompt": exercise_prompt}
-        )
+    exercise_answer: str | None = editor_launcher(
+        "answer",
+        {
+            "identifier": exercise_identifier
+            if exercise_identifier is not None
+            else "",
+            "prompt": exercise_prompt,
+        },
+    )
 
-        if exercise_answer is None or not exercise_answer.strip():
-            raise AddInteractiveError("Answer cannot be empty.")
-
-    else:
-        exercise_prompt = "" if args.prompt is None else args.prompt
-        exercise_answer = "" if args.answer is None else args.answer
-        exercise_identifier = args.identifier
+    if exercise_answer is None or not exercise_answer.strip():
+        raise AddInteractiveError("Answer cannot be empty.")
 
     application.add_exercise(
         prompt=exercise_prompt,
@@ -46,13 +45,23 @@ def _add_exercise(
     )
 
 
+def add_exercise_in_env_editor(application: ExerciseApplication) -> None:
+    _add_exercise_in_env_editor(
+        application=application,
+        editor_launcher=edit_in_env_editor,
+        identifier_prompt=inline_prompt,
+    )
+
+
 def add_exercise(
     application: ExerciseApplication,
-    args: argparse.Namespace,
+    identifier: str | None,
+    prompt: str,
+    answer: str,
 ) -> None:
-    return _add_exercise(
-        application,
-        args,
-        edit_in_env_editor,
-        inline_prompt,
+
+    application.add_exercise(
+        prompt=prompt,
+        answer=answer,
+        identifier=identifier,
     )

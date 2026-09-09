@@ -137,9 +137,10 @@ class Parser:
                 self._add_parser.error(
                     "prompt and answer are required unless --interactive is specified"
                 )
-            elif args.interactive:
+            if args.interactive:
                 args.prompt = None
                 args.answer = None
+                args.identifier = None
 
         return args
 

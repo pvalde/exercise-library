@@ -10,7 +10,7 @@ from exercise_library.locking import ApplicationLockTimeout
 from exercise_library.paths import log_file_path
 from exercise_library.repository import ExerciseRepository
 
-from .add_command import add_exercise
+from .add_command import add_exercise, add_exercise_in_env_editor
 from .browse_command import browse_exercises
 from .edit_command import edit_exercise, edit_exercise_env_editor
 from .parser import Parser
@@ -56,7 +56,16 @@ def main() -> int:
         application = ExerciseApplication(repository)
 
         if args.command == "add":
-            add_exercise(application, args)
+            if not args.interactive:
+                add_exercise(
+                    application,
+                    prompt=args.prompt,
+                    answer=args.answer,
+                    identifier=args.identifier,
+                )
+            if args.interactive:
+                add_exercise_in_env_editor(application)
+
             print("Exercise was successfully added to the library.")
 
         elif args.command == "browse":
