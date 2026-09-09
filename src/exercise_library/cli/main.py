@@ -73,7 +73,7 @@ def main() -> int:
                     exercise_id=args.id,
                     identifier=args.identifier,
                 )
-                print("The exercise has been successfully edited.")
+
             else:
                 edit_exercise(
                     application=application,
@@ -83,7 +83,8 @@ def main() -> int:
                     new_answer=args.new_answer,
                     new_identifier=args.new_identifier,
                 )
-                print("The exercise has been successfully edited.")
+
+            print("Exercise successfully edited.")
 
         logger.info("%s completed successfully.", APP_NAME)
         return 0
