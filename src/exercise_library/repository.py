@@ -214,3 +214,19 @@ class ExerciseRepository:
             prompt=row["prompt"],
             answer=row["answer"],
         )
+
+    def identifier_exists(self, identifier: str) -> bool:
+        cursor = self._connection.execute(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM exercises
+                WHERE identifier = ?
+            )
+            """,
+            (identifier,),
+        )
+
+        row = cursor.fetchone()
+
+        return bool(row[0])

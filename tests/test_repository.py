@@ -556,3 +556,20 @@ def test_get_by_identifier_and_get_by_id_return_same_exercise(
     by_id = repo.get_by_id(existing_exercise.id)
 
     assert by_identifier == by_id
+
+
+# identifier_exists ------------------------------------------------------------
+
+
+def test_identifier_exists(
+    existing_exercise: Exercise,
+) -> None:
+
+    assert existing_exercise.id is not None
+    assert existing_exercise.identifier is not None
+
+    connection = initialize()
+    repo = ExerciseRepository(connection)
+
+    assert repo.identifier_exists(existing_exercise.identifier)
+    assert not repo.identifier_exists("non-existent-identifier")
