@@ -125,6 +125,8 @@ def test_add_exercise_in_env_editor_calls_add_exercise() -> None:
 def test_add_exercise_in_env_editor_calls_add_exercise_with_identifier() -> None:
     application = Mock()
     application.add_exercise.return_value = uuid7()
+    application.is_valid_identifier.return_value = True
+    application.identifier_exists.return_value = False
     identifier_prompt = Mock(return_value="identifier")
 
     def fake_editor_launcher(
@@ -178,11 +180,40 @@ def test_add_exercise_in_env_editor_opens_identifier_prompt() -> None:
 def test_add_exercise_in_env_editor_allows_empty_identifier() -> None:
     application = Mock()
     application.add_exercise.return_value = uuid7()
-    editor = Mock(return_value="some content")
+    editor_launcher = Mock(return_value="some content")
     identifier_prompt = Mock(return_value=None)
 
-    _add_exercise_in_env_editor(application, editor, identifier_prompt)
+    _add_exercise_in_env_editor(application, editor_launcher, identifier_prompt)
     application.add_exercise.assert_called_once()
+
+
+def test_add_exercise_in_env_editor_raises_if_identifier_already_exists() -> None:
+    application = Mock()
+    application.is_valid_identifier.return_value = True
+    application.identifier_exists.return_value = True
+
+    editor_launcher = Mock()
+    identifier_prompt = Mock(return_value="valid-identifier")
+
+    with pytest.raises(
+        AddInteractiveError,
+        match="'valid-identifier' already exists.",
+    ):
+        _add_exercise_in_env_editor(application, editor_launcher, identifier_prompt)
+
+
+def test_add_exercise_in_env_editor_raises_if_identifier_is_invalid() -> None:
+    application = Mock()
+    application.is_valid_identifier.return_value = False
+
+    editor_launcher = Mock()
+    identifier_prompt = Mock(return_value="Invalid identifier")
+
+    with pytest.raises(
+        AddInteractiveError,
+        match="'Invalid identifier' is an invalid identifier.",
+    ):
+        _add_exercise_in_env_editor(application, editor_launcher, identifier_prompt)
 
 
 # ------------------------------------------------------------------------------

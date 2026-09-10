@@ -48,7 +48,6 @@ class ExerciseApplication:
         answer: str,
         identifier: str | None = None,
     ) -> UUID:
-
         if not prompt.strip() and not answer.strip():
             raise InvalidExerciseError("Prompt and answer cannot be empty.")
 
@@ -98,7 +97,6 @@ class ExerciseApplication:
             raise ExerciseApplicationError(str(exc)) from exc
 
     def update_exercise(self, exercise: Exercise) -> UUID:
-
         if exercise.identifier and not self._is_valid_identifier(exercise.identifier):
             raise InvalidExerciseError(invalid_identifier_msg(exercise.identifier))
 
@@ -128,3 +126,9 @@ class ExerciseApplication:
             return self.repository.get_by_identifier(identifier)
         except InvalidExerciseValues as exc:
             raise InvalidExerciseError(str(exc)) from exc
+
+    def is_valid_identifier(self, identifier: str) -> bool:
+        return self._is_valid_identifier(identifier)
+
+    def identifier_exists(self, identifier: str) -> bool:
+        return self.repository.identifier_exists(identifier)

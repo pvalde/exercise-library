@@ -17,6 +17,17 @@ def _add_exercise_in_env_editor(
 ) -> None:
     exercise_identifier: str | None = identifier_prompt("Identifier (optional): ")
 
+    if exercise_identifier:
+        if not application.is_valid_identifier(exercise_identifier):
+            raise AddInteractiveError(
+                f"'{exercise_identifier}' is an invalid identifier."
+                + "\nIt can only contain "
+                + "letters, numbers, dash, underscore and '::' separators."
+            )
+
+        if application.identifier_exists(exercise_identifier):
+            raise AddInteractiveError(f"'{exercise_identifier}' already exists.")
+
     exercise_prompt = editor_launcher(
         "prompt",
         {"identifier": exercise_identifier if exercise_identifier is not None else ""},

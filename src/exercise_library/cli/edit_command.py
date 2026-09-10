@@ -62,6 +62,17 @@ def _edit_exercise_env_editor(
         "Identifier (optional): ", exercise.identifier
     )
 
+    if new_identifier and (new_identifier != exercise.identifier):
+        if not application.is_valid_identifier(new_identifier):
+            raise EditError(
+                f"'{new_identifier}' is an invalid identifier."
+                + "\nIt can only contain "
+                + "letters, numbers, dash, underscore and '::' separators."
+            )
+
+        if application.identifier_exists(new_identifier):
+            raise EditError(f"'{new_identifier}' already exists.")
+
     new_exercise_prompt: str | None = editor_launcher(
         "prompt",
         {"identifier": new_identifier if new_identifier else ""},
