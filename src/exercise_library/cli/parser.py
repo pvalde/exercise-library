@@ -1,10 +1,26 @@
 import argparse
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
+from uuid import UUID
 
 import shtab
 
 from exercise_library.config import APP_NAME
+
+
+class _OnceAction(argparse.Action):
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        if getattr(namespace, self.dest, None) is not None:
+            parser.error(f"{option_string} may only be specified once")
+
+        setattr(namespace, self.dest, values)
 
 
 class Parser:
@@ -126,44 +142,71 @@ class Parser:
             help="Open markdown editor for prompt and answer",
         )
 
+        # ----------------------------------------------------------------------
+        # Show command
+        # ----------------------------------------------------------------------
+        self._show_parser = subparsers.add_parser(
+            "show",
+            help="Show an exercise.",
+        )
+
+        selector = self._show_parser.add_mutually_exclusive_group(required=True)
+
+        selector.add_argument(
+            "--identifier",
+            "-I",
+            type=str,
+        )
+
+        selector.add_argument(
+            "--id",
+            type=UUID,
+        )
+
+        self._show_parser.add_argument(
+            "--field",
+            "-f",
+            choices=["prompt", "answer"],
+            action=_OnceAction,
+            help="Show only the specified field,",
+        )
+
         shtab.add_argument_to(self._parser)
 
     def _validate_add_args(
         self,
         args: argparse.Namespace,
     ) -> argparse.Namespace:
-        if args.command == "add":
-            if not args.interactive and (args.prompt is None or args.answer is None):
-                self._add_parser.error(
-                    "prompt and answer are required unless --interactive is specified"
-                )
-            if args.interactive:
-                args.prompt = None
-                args.answer = None
-                args.identifier = None
+        if not args.interactive and (args.prompt is None or args.answer is None):
+            self._add_parser.error(
+                "prompt and answer are required unless --interactive is specified"
+            )
+        if args.interactive:
+            args.prompt = None
+            args.answer = None
+            args.identifier = None
 
         return args
 
     def _validate_edit_args(self, args: argparse.Namespace) -> argparse.Namespace:
-        if args.command == "edit":
-            if not args.interactive:
-                if not args.id and not args.identifier:
-                    self._edit_parser.error(
-                        "at least 'id' or 'identifier' must be provided.",
-                    )
-                if (
-                    args.new_prompt is None
-                    and args.new_answer is None
-                    and args.new_identifier is None
-                ):
-                    self._edit_parser.error(
-                        "Please provide at least one of: "
-                        + "'new prompt', 'new answer', or 'new identifier'."
-                    )
-            if args.interactive:
-                args.new_prompt = None
-                args.new_answer = None
-                args.new_identifier = None
+        if not args.interactive:
+            if not args.id and not args.identifier:
+                self._edit_parser.error(
+                    "at least 'id' or 'identifier' must be provided.",
+                )
+            if (
+                args.new_prompt is None
+                and args.new_answer is None
+                and args.new_identifier is None
+            ):
+                self._edit_parser.error(
+                    "Please provide at least one of: "
+                    + "'new prompt', 'new answer', or 'new identifier'."
+                )
+        if args.interactive:
+            args.new_prompt = None
+            args.new_answer = None
+            args.new_identifier = None
 
         return args
 
@@ -173,8 +216,12 @@ class Parser:
         namespace: None = None,
     ) -> argparse.Namespace:
         args = self._parser.parse_args(args, namespace)
-        args = self._validate_add_args(args)
-        return self._validate_edit_args(args)
+        if args.command == "add":
+            args = self._validate_add_args(args)
+        elif args.command == "edit":
+            args = self._validate_edit_args(args)
+
+        return args
 
     def _backup_path(self, value: str) -> Path:
         path = Path(value).expanduser()

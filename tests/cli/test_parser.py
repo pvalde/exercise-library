@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import uuid7
 
 import pytest
 
@@ -446,3 +447,136 @@ def test_edit_command_interactive_ignores_new_content_cli_args() -> None:
     assert args.new_prompt is None
     assert args.new_answer is None
     assert args.new_identifier is None
+
+
+# ------------------------------------------------------------------------------
+# Show command
+# ------------------------------------------------------------------------------
+
+
+def test_show_command_requires_identifier_or_id(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(
+            [
+                "show",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+
+    assert (
+        "show: error: one of the arguments --identifier/-I --id is required"
+        in captured.err
+    )
+
+    args = Parser().get_args(["show", "-I", "identifier"])
+    assert args.identifier == "identifier"
+
+    id = uuid7()
+
+    args = Parser().get_args(["show", "--id", str(id)])
+    assert args.id == id
+
+
+def test_show_command_raises_if_identifier_and_id_provided(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    id = uuid7()
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["show", "--id", str(id), "-I", "identifier"])
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+
+    assert (
+        "show: error: argument --identifier/-I: not allowed with argument --id"
+        in captured.err
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["show", "-I", "identifier", "--id", str(id)])
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+
+    assert (
+        "show: error: argument --id: not allowed with argument --identifier/-I"
+        in captured.err
+    )
+
+
+def test_show_command_accepts_only_one_field(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["show", "-I", "identifier", "-f", "prompt", "-f", "answer"])
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+    assert "show: error: -f may only be specified once" in captured.err
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(
+            ["show", "-I", "identifier", "--field", "prompt", "--field", "answer"]
+        )
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+    assert "show: error: --field may only be specified once" in captured.err
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(
+            ["show", "-I", "identifier", "-f", "prompt", "--field", "answer"]
+        )
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+    assert "show: error: --field may only be specified once" in captured.err
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(
+            ["show", "-I", "identifier", "--field", "prompt", "-f", "answer"]
+        )
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+    assert "show: error: -f may only be specified once" in captured.err
+
+
+def test_show_command_gets_args() -> None:
+    args = Parser().get_args(["show", "--identifier", "identifier", "-f", "prompt"])
+
+    assert args.identifier == "identifier"
+    assert args.field == "prompt"
+
+    id = uuid7()
+    args = Parser().get_args(["show", "--id", str(id), "-f", "answer"])
+
+    assert args.id == id
+    assert args.field == "answer"
+
+
+def test_show_command_rejects_unknown_field(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["show", "--identifier", "identifier", "-f", "unknown"])
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+    assert (
+        "show: error: argument --field/-f:"
+        + " invalid choice: 'unknown' (choose from 'prompt', 'answer')"
+    ) in captured.err

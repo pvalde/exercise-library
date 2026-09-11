@@ -4,6 +4,7 @@ from logging.handlers import RotatingFileHandler
 
 from exercise_library.application import ExerciseApplication, ExerciseApplicationError
 from exercise_library.cli.exceptions import CLIError
+from exercise_library.cli.show_command import show_exercise
 from exercise_library.config import APP_NAME
 from exercise_library.database import initialize
 from exercise_library.locking import ApplicationLockTimeout
@@ -94,6 +95,15 @@ def main() -> int:
                 )
 
             print("Exercise successfully edited.")
+
+        elif args.command == "show":
+            show_exercise(
+                application,
+                id=args.id,
+                identifier=args.identifier,
+                show_prompt=(args.field != "answer"),
+                show_answer=(args.field != "prompt"),
+            )
 
         logger.info("%s completed successfully.", APP_NAME)
         return 0
