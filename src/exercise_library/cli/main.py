@@ -103,6 +103,7 @@ def main() -> int:
                 identifier=args.identifier,
                 show_prompt=(args.field != "answer"),
                 show_answer=(args.field != "prompt"),
+                show_in_webbrowser=args.open_in_browser,
             )
 
         logger.info("%s completed successfully.", APP_NAME)

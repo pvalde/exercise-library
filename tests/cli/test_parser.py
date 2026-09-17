@@ -561,12 +561,33 @@ def test_show_command_gets_args() -> None:
 
     assert args.identifier == "identifier"
     assert args.field == "prompt"
+    assert not args.open_in_browser
 
     id = uuid7()
     args = Parser().get_args(["show", "--id", str(id), "-f", "answer"])
 
     assert args.id == id
     assert args.field == "answer"
+    assert not args.open_in_browser
+
+
+def test_show_command_gets_args_with_open_in_browser_option() -> None:
+    args = Parser().get_args(
+        ["show", "--identifier", "identifier", "-f", "prompt", "-o"]
+    )
+
+    assert args.identifier == "identifier"
+    assert args.field == "prompt"
+    assert args.open_in_browser
+
+    id = uuid7()
+    args = Parser().get_args(
+        ["show", "--id", str(id), "-f", "answer", "--open-in-browser"]
+    )
+
+    assert args.id == id
+    assert args.field == "answer"
+    assert args.open_in_browser
 
 
 def test_show_command_rejects_unknown_field(capsys: pytest.CaptureFixture[str]) -> None:

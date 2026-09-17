@@ -168,7 +168,14 @@ class Parser:
             "-f",
             choices=["prompt", "answer"],
             action=_OnceAction,
-            help="Show only the specified field,",
+            help="Show only the specified field.",
+        )
+
+        self._show_parser.add_argument(
+            "--open-in-browser",
+            "-o",
+            action="store_true",
+            help="Open exercise in default web browser.",
         )
 
         shtab.add_argument_to(self._parser)
