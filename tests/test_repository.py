@@ -26,10 +26,10 @@ def existing_exercise() -> Exercise:
         identifier="existing_exercise",
     )
 
-    exercise_id = ExerciseRepository(connection).add(exercise)
+    exercise_uuid = ExerciseRepository(connection).add(exercise)
 
     exercise = Exercise(
-        id=exercise_id,
+        uuid=exercise_uuid,
         prompt=exercise.prompt,
         answer=exercise.answer,
         identifier=exercise.identifier,
@@ -57,13 +57,13 @@ def test_add_exercise(
             identifier="book::exset::01",
         )
 
-        exercise_id = repository.add(exercise)
+        exercise_uuid = repository.add(exercise)
 
-        assert exercise_id is not None
+        assert exercise_uuid is not None
 
         row = connection.execute(
-            "SELECT id, identifier, prompt, answer FROM exercises WHERE id = ?",
-            (str(exercise_id),),
+            "SELECT uuid, identifier, prompt, answer FROM exercises WHERE uuid = ?",
+            (str(exercise_uuid),),
         ).fetchone()
 
         assert row is not None
@@ -87,11 +87,11 @@ def test_add_exercise_without_identifier(
             answer="4",
         )
 
-        exercise_id = repository.add(exercise)
+        exercise_uuid = repository.add(exercise)
 
         exercises = repository.list_all()
 
-        assert exercise_id is not None
+        assert exercise_uuid is not None
         assert len(exercises) == 1
         assert exercises[0].identifier is None
         assert exercises[0].prompt == exercise.prompt
@@ -166,14 +166,14 @@ def test_list_all_returns_exercises(
     assert len(exercises) == 2
     assert exercises[0].prompt == "Question 1"
     assert exercises[0].answer == "Answer 1"
-    assert exercises[0].id is not None
-    assert isinstance(exercises[0].id, UUID)
+    assert exercises[0].uuid is not None
+    assert isinstance(exercises[0].uuid, UUID)
     assert exercises[0].identifier == "book-a::exset::01"
 
     assert exercises[1].prompt == "Question 2"
     assert exercises[1].answer == "Answer 2"
-    assert exercises[0].id is not None
-    assert isinstance(exercises[0].id, UUID)
+    assert exercises[0].uuid is not None
+    assert isinstance(exercises[0].uuid, UUID)
     assert exercises[1].identifier == "book-b::exset::02"
 
 
@@ -311,7 +311,7 @@ def test_update_exercise(
     existing_exercise: Exercise,
 ) -> None:
     updated_exercise = Exercise(
-        id=existing_exercise.id,
+        uuid=existing_exercise.uuid,
         identifier="updated_exercise",
         prompt="updated_prompt",
         answer="updated_answer",
@@ -320,18 +320,18 @@ def test_update_exercise(
     connection = initialize()
     result = ExerciseRepository(connection).update(updated_exercise)
 
-    assert result == updated_exercise.id
+    assert result == updated_exercise.uuid
 
     row = connection.execute(
         """
-        SELECT id, identifier, prompt, answer
+        SELECT uuid, identifier, prompt, answer
         FROM exercises
-        WHERE id = ?;
+        WHERE uuid = ?;
         """,
-        (str(updated_exercise.id),),
+        (str(updated_exercise.uuid),),
     ).fetchone()
 
-    assert row["id"] == str(updated_exercise.id)
+    assert row["uuid"] == str(updated_exercise.uuid)
     assert row["identifier"] == "updated_exercise"
     assert row["prompt"] == "updated_prompt"
     assert row["answer"] == "updated_answer"
@@ -346,9 +346,9 @@ def test_update_sets_updated_at_to_a_newer_time(
         """
         SELECT updated_at
         FROM exercises
-        WHERE id = ?;
+        WHERE uuid = ?;
         """,
-        (str(existing_exercise.id),),
+        (str(existing_exercise.uuid),),
     ).fetchone()
 
     assert original_row is not None
@@ -360,7 +360,7 @@ def test_update_sets_updated_at_to_a_newer_time(
     time.sleep(0.01)
 
     updated_exercise = Exercise(
-        id=existing_exercise.id,
+        uuid=existing_exercise.uuid,
         identifier="updated_exercise",
         prompt="updated_prompt",
         answer="updated_answer",
@@ -368,15 +368,15 @@ def test_update_sets_updated_at_to_a_newer_time(
 
     result = ExerciseRepository(connection).update(updated_exercise)
 
-    assert result == updated_exercise.id
+    assert result == updated_exercise.uuid
 
     updated_row: sqlite3.Row | None = connection.execute(
         """
         SELECT updated_at
         FROM exercises
-        WHERE id = ?;
+        WHERE uuid = ?;
         """,
-        (str(existing_exercise.id),),
+        (str(existing_exercise.uuid),),
     ).fetchone()
 
     assert updated_row is not None
@@ -387,12 +387,12 @@ def test_update_sets_updated_at_to_a_newer_time(
     assert updated_updated_at > original_updated_at
 
 
-def test_update_requires_an_id() -> None:
+def test_update_requires_an_uuid() -> None:
     connection = initialize()
     repository = ExerciseRepository(connection)
 
     exercise = Exercise(
-        id=None,
+        uuid=None,
         identifier="exercise",
         prompt="prompt",
         answer="answer",
@@ -400,19 +400,19 @@ def test_update_requires_an_id() -> None:
 
     with pytest.raises(
         InvalidExerciseValues,
-        match="Exercise ID has not been provided",
+        match="Exercise UUID has not been provided",
     ):
         repository.update(exercise)
 
 
-def test_update_rejects_unknown_id() -> None:
+def test_update_rejects_unknown_uuid() -> None:
     connection = initialize()
     repository = ExerciseRepository(connection)
 
-    unknown_id = uuid7()
+    unknown_uuid = uuid7()
 
     exercise = Exercise(
-        id=unknown_id,
+        uuid=unknown_uuid,
         identifier="exercise",
         prompt="prompt",
         answer="answer",
@@ -420,7 +420,7 @@ def test_update_rejects_unknown_id() -> None:
 
     with pytest.raises(
         InvalidExerciseValues,
-        match=f"No exercise found with id {unknown_id}",
+        match=f"No exercise found with uuid {unknown_uuid}",
     ):
         repository.update(exercise)
 
@@ -439,7 +439,7 @@ def test_update_rejects_duplicate_identifier(
     )
 
     updated_exercise = Exercise(
-        id=existing_exercise.id,
+        uuid=existing_exercise.uuid,
         identifier="other_exercise",
         prompt="updated_prompt",
         answer="updated_answer",
@@ -466,7 +466,7 @@ def test_update_duplicate_identifier_does_not_change_row(
     )
 
     updated_exercise = Exercise(
-        id=existing_exercise.id,
+        uuid=existing_exercise.uuid,
         identifier="other_exercise",
         prompt="updated_prompt",
         answer="updated_answer",
@@ -480,15 +480,15 @@ def test_update_duplicate_identifier_does_not_change_row(
 
     row: sqlite3.Row | None = connection.execute(
         """
-        SELECT id, identifier, prompt, answer
+        SELECT uuid, identifier, prompt, answer
         FROM exercises
-        WHERE id = ?;
+        WHERE uuid = ?;
         """,
-        (str(existing_exercise.id),),
+        (str(existing_exercise.uuid),),
     ).fetchone()
 
     assert row is not None
-    assert row["id"] == str(existing_exercise.id)
+    assert row["uuid"] == str(existing_exercise.uuid)
     assert row["identifier"] == existing_exercise.identifier
     assert row["prompt"] == existing_exercise.prompt
     assert row["answer"] == existing_exercise.answer
@@ -507,7 +507,7 @@ def test_get_by_identifier_returns_exercise(
         existing_exercise.identifier
     )
 
-    assert result.id == existing_exercise.id
+    assert result.uuid == existing_exercise.uuid
     assert result.prompt == existing_exercise.prompt
     assert result.answer == existing_exercise.answer
     assert result.identifier == existing_exercise.identifier
@@ -521,21 +521,21 @@ def test_get_by_identifier_raises_when_exercise_does_not_exists(
         ExerciseRepository(connection).get_by_identifier("non-existent-identifier")
 
 
-def test_get_by_id_returns_exercise(
+def test_get_by_uuid_returns_exercise(
     existing_exercise: Exercise,
 ) -> None:
     connection = initialize()
 
-    assert existing_exercise.id is not None
-    result = ExerciseRepository(connection).get_by_id(existing_exercise.id)
+    assert existing_exercise.uuid is not None
+    result = ExerciseRepository(connection).get_by_uuid(existing_exercise.uuid)
 
-    assert result.id == existing_exercise.id
+    assert result.uuid == existing_exercise.uuid
     assert result.prompt == existing_exercise.prompt
     assert result.answer == existing_exercise.answer
     assert result.identifier == existing_exercise.identifier
 
 
-def test_get_by_id_raises_when_exercise_does_not_exists(
+def test_get_by_uuid_raises_when_exercise_does_not_exists(
     existing_exercise: Exercise,
 ) -> None:
     with pytest.raises(InvalidExerciseValues, match="Exercise not found"):
@@ -543,19 +543,19 @@ def test_get_by_id_raises_when_exercise_does_not_exists(
         ExerciseRepository(connection).get_by_identifier(str(uuid7()))
 
 
-def test_get_by_identifier_and_get_by_id_return_same_exercise(
+def test_get_by_identifier_and_get_by_uuid_return_same_exercise(
     existing_exercise: Exercise,
 ) -> None:
 
-    assert existing_exercise.id is not None
+    assert existing_exercise.uuid is not None
     assert existing_exercise.identifier is not None
 
     connection = initialize()
     repo = ExerciseRepository(connection)
     by_identifier = repo.get_by_identifier(existing_exercise.identifier)
-    by_id = repo.get_by_id(existing_exercise.id)
+    by_uuid = repo.get_by_uuid(existing_exercise.uuid)
 
-    assert by_identifier == by_id
+    assert by_identifier == by_uuid
 
 
 # identifier_exists ------------------------------------------------------------
@@ -565,7 +565,7 @@ def test_identifier_exists(
     existing_exercise: Exercise,
 ) -> None:
 
-    assert existing_exercise.id is not None
+    assert existing_exercise.uuid is not None
     assert existing_exercise.identifier is not None
 
     connection = initialize()

@@ -106,7 +106,7 @@ class Parser:
         # Edit command
         # ----------------------------------------------------------------------
         self._edit_parser = subparsers.add_parser(
-            "edit", help="Edit an exercise. Provide identifier or id."
+            "edit", help="Edit an exercise. Provide identifier or uuid."
         )
 
         self._edit_parser.add_argument(
@@ -116,7 +116,7 @@ class Parser:
         )
 
         self._edit_parser.add_argument(
-            "--id",
+            "--uuid",
             type=str,
         )
 
@@ -159,7 +159,7 @@ class Parser:
         )
 
         selector.add_argument(
-            "--id",
+            "--uuid",
             type=UUID,
         )
 
@@ -197,9 +197,9 @@ class Parser:
 
     def _validate_edit_args(self, args: argparse.Namespace) -> argparse.Namespace:
         if not args.interactive:
-            if not args.id and not args.identifier:
+            if not args.uuid and not args.identifier:
                 self._edit_parser.error(
-                    "at least 'id' or 'identifier' must be provided.",
+                    "at least 'uuid' or 'identifier' must be provided.",
                 )
             if (
                 args.new_prompt is None

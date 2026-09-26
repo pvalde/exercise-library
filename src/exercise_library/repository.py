@@ -52,18 +52,18 @@ class ExerciseRepository:
 
     def add(self, exercise: Exercise) -> UUID:
         with application_lock():
-            exercise_id = uuid7()
+            exercise_uuid = uuid7()
 
             try:
                 current_time = datetime.now(tz=UTC)
                 self._connection.execute(
                     """
                     INSERT INTO exercises
-                    (id, identifier, prompt, answer, created_at, updated_at)
+                    (uuid, identifier, prompt, answer, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?)
                         """,
                     (
-                        str(exercise_id),
+                        str(exercise_uuid),
                         exercise.identifier,
                         exercise.prompt,
                         exercise.answer,
@@ -79,21 +79,21 @@ class ExerciseRepository:
                     ) from error
                 raise
 
-            return exercise_id
+            return exercise_uuid
 
     def update(self, exercise: Exercise) -> UUID:
-        if not exercise.id:
-            raise InvalidExerciseValues("Exercise ID has not been provided.")
+        if not exercise.uuid:
+            raise InvalidExerciseValues("Exercise UUID has not been provided.")
 
         with application_lock():
             row = self._connection.execute(
-                "SELECT 1 FROM exercises WHERE id = ?;",
-                (str(exercise.id),),
+                "SELECT 1 FROM exercises WHERE uuid = ?;",
+                (str(exercise.uuid),),
             ).fetchone()
 
             if row is None:
                 raise InvalidExerciseValues(
-                    f"No exercise found with id {str(exercise.id)}",
+                    f"No exercise found with uuid {str(exercise.uuid)}",
                 )
 
             try:
@@ -104,14 +104,14 @@ class ExerciseRepository:
                         prompt      = ?,
                         answer      = ?,
                         updated_at = ?
-                    WHERE id = ?;
+                    WHERE uuid = ?;
                     """,
                     (
                         exercise.identifier,
                         exercise.prompt,
                         exercise.answer,
                         self._to_db_datetime(datetime.now(tz=UTC)),
-                        str(exercise.id),
+                        str(exercise.uuid),
                     ),
                 )
                 self._connection.commit()
@@ -121,18 +121,18 @@ class ExerciseRepository:
                         f"Exercise identifier already exists: {exercise.identifier!r}"
                     ) from error
                 raise
-            return exercise.id
+            return exercise.uuid
 
     def list_all(self) -> list[Exercise]:
         cursor = self._connection.execute(
             """
-            SELECT id, identifier, prompt, answer
+            SELECT uuid, identifier, prompt, answer
             FROM exercises
             """
         )
         return [
             Exercise(
-                id=UUID(row["id"]),
+                uuid=UUID(row["uuid"]),
                 identifier=row["identifier"],
                 prompt=row["prompt"],
                 answer=row["answer"],
@@ -144,27 +144,27 @@ class ExerciseRepository:
         if identifier is None:
             cursor = self._connection.execute(
                 """
-                SELECT id, identifier, prompt, answer
+                SELECT uuid, identifier, prompt, answer
                 FROM exercises
-                ORDER BY id
+                ORDER BY uuid
                 """
             )
 
         else:
             cursor = self._connection.execute(
                 """
-                SELECT id, identifier, prompt, answer
+                SELECT uuid, identifier, prompt, answer
                 FROM exercises
                 WHERE identifier = ?
                    OR identifier LIKE ? || '::%'
-                ORDER BY id
+                ORDER BY uuid
                 """,
                 (identifier, identifier),
             )
 
         return [
             Exercise(
-                id=UUID(row["id"]),
+                uuid=UUID(row["uuid"]),
                 identifier=row["identifier"],
                 prompt=row["prompt"],
                 answer=row["answer"],
@@ -175,7 +175,7 @@ class ExerciseRepository:
     def get_by_identifier(self, identifier: str) -> Exercise:
         cursor = self._connection.execute(
             """
-            SELECT id, identifier, prompt, answer
+            SELECT uuid, identifier, prompt, answer
             FROM exercises
             WHERE identifier = ?;
             """,
@@ -187,29 +187,29 @@ class ExerciseRepository:
         if row is None:
             raise InvalidExerciseValues(f"Exercise not found: {identifier}")
         return Exercise(
-            id=UUID(row["id"]),
+            uuid=UUID(row["uuid"]),
             identifier=row["identifier"],
             prompt=row["prompt"],
             answer=row["answer"],
         )
 
-    def get_by_id(self, id: UUID) -> Exercise:
+    def get_by_uuid(self, uuid: UUID) -> Exercise:
         cursor = self._connection.execute(
             """
-            SELECT id, identifier, prompt, answer
+            SELECT uuid, identifier, prompt, answer
             FROM exercises
-            WHERE id = ?;
+            WHERE uuid = ?;
             """,
-            (str(id),),
+            (str(uuid),),
         )
 
         row = cursor.fetchone()
 
         if row is None:
-            raise InvalidExerciseValues(f"Exercise not found: {str(id)}.")
+            raise InvalidExerciseValues(f"Exercise not found: {str(uuid)}.")
 
         return Exercise(
-            id=UUID(row["id"]),
+            uuid=UUID(row["uuid"]),
             identifier=row["identifier"],
             prompt=row["prompt"],
             answer=row["answer"],

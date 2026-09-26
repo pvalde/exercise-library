@@ -338,7 +338,7 @@ def test_unknown_command(
 # ------------------------------------------------------------------------------
 # Edit command
 # ------------------------------------------------------------------------------
-def test_edit_command_requires_id_or_identifier(
+def test_edit_command_requires_uuid_or_identifier(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
@@ -348,7 +348,7 @@ def test_edit_command_requires_id_or_identifier(
 
     captured = capsys.readouterr()
 
-    assert "at least 'id' or 'identifier' must be provided." in captured.err
+    assert "at least 'uuid' or 'identifier' must be provided." in captured.err
 
 
 def test_edit_command_raise_if_no_new_field_is_provided(
@@ -369,14 +369,14 @@ def test_edit_command_turns_non_provided_args_into_none() -> None:
     args = Parser().get_args(
         [
             "edit",
-            "--id",
-            "id",
+            "--uuid",
+            "uuid",
             "--new-prompt",
             "new prompt",
         ]
     )
 
-    assert args.id == "id"
+    assert args.uuid == "uuid"
     assert args.identifier is None
     assert args.new_prompt == "new prompt"
     assert args.new_answer is None
@@ -392,7 +392,7 @@ def test_edit_command_turns_non_provided_args_into_none() -> None:
         ]
     )
 
-    assert args.id is None
+    assert args.uuid is None
     assert args.identifier == "identifier"
     assert args.new_prompt is None
     assert args.new_answer == "new answer"
@@ -403,8 +403,8 @@ def test_edit_command_gets_args() -> None:
     args = Parser().get_args(
         [
             "edit",
-            "--id",
-            "id",
+            "--uuid",
+            "uuid",
             "-I",
             "identifier",
             "--new-prompt",
@@ -416,7 +416,7 @@ def test_edit_command_gets_args() -> None:
         ]
     )
 
-    assert args.id == "id"
+    assert args.uuid == "uuid"
     assert args.identifier == "identifier"
     assert args.new_prompt == "new prompt"
     assert args.new_answer == "new answer"
@@ -430,8 +430,8 @@ def test_edit_command_interactive_ignores_new_content_cli_args() -> None:
             "--interactive",
             "-I",
             "identifier",
-            "--id",
-            "id",
+            "--uuid",
+            "uuid",
             "--new-prompt",
             "new prompt",
             "--new-answer",
@@ -443,7 +443,7 @@ def test_edit_command_interactive_ignores_new_content_cli_args() -> None:
 
     assert args.interactive
     assert args.identifier == "identifier"
-    assert args.id == "id"
+    assert args.uuid == "uuid"
     assert args.new_prompt is None
     assert args.new_answer is None
     assert args.new_identifier is None
@@ -454,7 +454,7 @@ def test_edit_command_interactive_ignores_new_content_cli_args() -> None:
 # ------------------------------------------------------------------------------
 
 
-def test_show_command_requires_identifier_or_id(
+def test_show_command_requires_identifier_or_uuid(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
 
@@ -470,45 +470,45 @@ def test_show_command_requires_identifier_or_id(
     captured = capsys.readouterr()
 
     assert (
-        "show: error: one of the arguments --identifier/-I --id is required"
+        "show: error: one of the arguments --identifier/-I --uuid is required"
         in captured.err
     )
 
     args = Parser().get_args(["show", "-I", "identifier"])
     assert args.identifier == "identifier"
 
-    id = uuid7()
+    uuid = uuid7()
 
-    args = Parser().get_args(["show", "--id", str(id)])
-    assert args.id == id
+    args = Parser().get_args(["show", "--uuid", str(uuid)])
+    assert args.uuid == uuid
 
 
-def test_show_command_raises_if_identifier_and_id_provided(
+def test_show_command_raises_if_identifier_and_uuid_provided(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    id = uuid7()
+    uuid = uuid7()
 
     with pytest.raises(SystemExit) as exc_info:
-        Parser().get_args(["show", "--id", str(id), "-I", "identifier"])
+        Parser().get_args(["show", "--uuid", str(uuid), "-I", "identifier"])
 
     assert exc_info.value.code == 2
 
     captured = capsys.readouterr()
 
     assert (
-        "show: error: argument --identifier/-I: not allowed with argument --id"
+        "show: error: argument --identifier/-I: not allowed with argument --uuid"
         in captured.err
     )
 
     with pytest.raises(SystemExit) as exc_info:
-        Parser().get_args(["show", "-I", "identifier", "--id", str(id)])
+        Parser().get_args(["show", "-I", "identifier", "--uuid", str(uuid)])
 
     assert exc_info.value.code == 2
 
     captured = capsys.readouterr()
 
     assert (
-        "show: error: argument --id: not allowed with argument --identifier/-I"
+        "show: error: argument --uuid: not allowed with argument --identifier/-I"
         in captured.err
     )
 
@@ -563,10 +563,10 @@ def test_show_command_gets_args() -> None:
     assert args.field == "prompt"
     assert not args.open_in_browser
 
-    id = uuid7()
-    args = Parser().get_args(["show", "--id", str(id), "-f", "answer"])
+    uuid = uuid7()
+    args = Parser().get_args(["show", "--uuid", str(uuid), "-f", "answer"])
 
-    assert args.id == id
+    assert args.uuid == uuid
     assert args.field == "answer"
     assert not args.open_in_browser
 
@@ -580,12 +580,12 @@ def test_show_command_gets_args_with_open_in_browser_option() -> None:
     assert args.field == "prompt"
     assert args.open_in_browser
 
-    id = uuid7()
+    uuid = uuid7()
     args = Parser().get_args(
-        ["show", "--id", str(id), "-f", "answer", "--open-in-browser"]
+        ["show", "--uuid", str(uuid), "-f", "answer", "--open-in-browser"]
     )
 
-    assert args.id == id
+    assert args.uuid == uuid
     assert args.field == "answer"
     assert args.open_in_browser
 

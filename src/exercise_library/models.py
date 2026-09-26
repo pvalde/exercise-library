@@ -7,4 +7,4 @@ class Exercise:
     prompt: str
     answer: str
     identifier: str | None = None
-    id: UUID | None = None
+    uuid: UUID | None = None

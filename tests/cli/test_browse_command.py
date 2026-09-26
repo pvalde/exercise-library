@@ -18,13 +18,13 @@ def test_browse_exercises_prints_exercises(
     application: ExerciseApplication,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    first_id = application.repository.add(
+    first_uuid = application.repository.add(
         Exercise(
             prompt="What is Python?",
             answer="A programming language.",
         )
     )
-    second_id = application.repository.add(
+    second_uuid = application.repository.add(
         Exercise(
             prompt="What is pytest?",
             answer="A testing framework.",
@@ -35,11 +35,11 @@ def test_browse_exercises_prints_exercises(
 
     output = capsys.readouterr().out
 
-    assert f"[{first_id}]" in output
+    assert f"[{first_uuid}]" in output
     assert "Prompt:\nWhat is Python?" in output
     assert "Answer:\nA programming language." in output
 
-    assert f"[{second_id}]" in output
+    assert f"[{second_uuid}]" in output
     assert "Prompt:\nWhat is pytest?" in output
     assert "Answer:\nA testing framework." in output
 
@@ -50,7 +50,7 @@ def test_browse_exercises_prints_filtered_exercises(
     application: ExerciseApplication,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    exercise_id = application.repository.add(
+    exercise_uuid = application.repository.add(
         Exercise(
             identifier="book::chapter01::exercise05",
             prompt="What is the derivative of x^2?",
@@ -65,7 +65,7 @@ def test_browse_exercises_prints_filtered_exercises(
 
     output = capsys.readouterr().out
 
-    assert f"[{exercise_id}]" in output
+    assert f"[{exercise_uuid}]" in output
     assert "book::chapter01::exercise05" in output
     assert "Prompt:\nWhat is the derivative of x^2?" in output
     assert "Answer:\n2x" in output

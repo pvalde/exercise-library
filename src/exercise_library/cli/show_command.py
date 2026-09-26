@@ -21,17 +21,17 @@ class ShowError(CLIError):
 
 def show_exercise(
     application: ExerciseApplication,
-    id: UUID | None = None,
+    uuid: UUID | None = None,
     identifier: str | None = None,
     show_prompt: bool = False,
     show_answer: bool = False,
     show_in_webbrowser: bool = False,
 ) -> None:
-    if id is None and identifier is None:
-        raise ShowError("At least one of 'id' or 'identifier' must be provided.")
+    if uuid is None and identifier is None:
+        raise ShowError("At least one of 'uuid' or 'identifier' must be provided.")
 
-    if id:
-        exercise = application.get_exercise_by_id(id)
+    if uuid:
+        exercise = application.get_exercise_by_uuid(uuid)
     else:
         assert identifier is not None
         exercise = application.get_exercise_by_identifier(identifier)
@@ -49,7 +49,7 @@ def show_exercise(
         if exercise.identifier:
             output += f"Exercise:\n{exercise.identifier}\n\n"
         else:
-            output += f"Exercise:\n{exercise.id}\n\n"
+            output += f"Exercise:\n{exercise.uuid}\n\n"
 
         if show_prompt:
             output += f"Prompt:\n{exercise.prompt}\n\n"
@@ -99,17 +99,17 @@ def _open_webbrowser(
     prompt_html = md.render(exercise.prompt)
     answer_html = md.render(exercise.answer)
 
-    assert exercise.id is not None
+    assert exercise.uuid is not None
 
     title = (
         "<title>" + escape(exercise.identifier) + "</title>\n"
         if exercise.identifier
-        else "<title>" + escape(str(exercise.id)) + "</title>\n"
+        else "<title>" + escape(str(exercise.uuid)) + "</title>\n"
     )
 
     h1 = (
         (
-            '<section class="ex_id">\n'
+            '<section class="ex_uuid">\n'
             + "<h2><i>"
             + escape(exercise.identifier)
             + "</i></h2>\n"
@@ -118,9 +118,9 @@ def _open_webbrowser(
         )
         if exercise.identifier
         else (
-            '<section class="ex_id">\n'
+            '<section class="ex_uuid">\n'
             + "<h1>Title</h1>\n"
-            + escape(str(exercise.id))
+            + escape(str(exercise.uuid))
             + "\n"
             + "</section>\n"
         )

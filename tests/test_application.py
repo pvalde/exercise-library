@@ -35,16 +35,16 @@ def test_add_exercise_raises_if_invalid_prompt(
         )
 
 
-def test_add_exercise_returns_id(
+def test_add_exercise_returns_uuid(
     application: ExerciseApplication,
 ) -> None:
-    exercise_id = application.add_exercise(
+    exercise_uuid = application.add_exercise(
         prompt="What is Python?",
         answer="A programming language.",
     )
 
-    assert exercise_id is not None
-    assert isinstance(exercise_id, UUID)
+    assert exercise_uuid is not None
+    assert isinstance(exercise_uuid, UUID)
 
 
 def test_add_exercise_persists_exercise(
@@ -58,7 +58,7 @@ def test_add_exercise_persists_exercise(
 
     exercises = application.repository.browse()
 
-    assert exercises[0].id is not None
+    assert exercises[0].uuid is not None
     assert exercises[0].prompt == "What is Python?"
     assert exercises[0].answer == "A programming language."
     assert exercises[0].identifier == "book::chapter01::exercise05"
@@ -126,11 +126,11 @@ def test_browse_exercises_returns_exercises(
 
     exercises = application.browse_exercises()
 
-    assert exercises[0].id is not None
+    assert exercises[0].uuid is not None
     assert exercises[0].prompt == "What is Python?"
     assert exercises[0].answer == "A programming language."
 
-    assert exercises[1].id is not None
+    assert exercises[1].uuid is not None
     assert exercises[1].prompt == "What is pytest?"
     assert exercises[1].answer == "A testing framework."
 
@@ -162,12 +162,12 @@ def test_browse_exercises_filters_by_identifier(
 
     exercises = application.browse_exercises("book::chapter01")
 
-    assert exercises[0].id is not None
+    assert exercises[0].uuid is not None
     assert exercises[0].prompt == "Exercise 1"
     assert exercises[0].answer == "Answer 1"
     assert exercises[0].identifier == "book::chapter01::exercise01"
 
-    assert exercises[1].id is not None
+    assert exercises[1].uuid is not None
     assert exercises[1].prompt == "Exercise 2"
     assert exercises[1].answer == "Answer 2"
     assert exercises[1].identifier == "book::chapter01::exercise02"
@@ -190,13 +190,13 @@ def test_add_exercise_accepts_valid_identifier(
     application: ExerciseApplication,
     identifier: str,
 ) -> None:
-    exercise_id = application.add_exercise(
+    exercise_uuid = application.add_exercise(
         prompt="What is Python?",
         answer="A programming language.",
         identifier=identifier,
     )
 
-    assert exercise_id is not None
+    assert exercise_uuid is not None
 
 
 @pytest.mark.parametrize(
@@ -239,38 +239,38 @@ def test_add_exercise_rejects_invalid_identifier(
 def test_add_exercise_allows_identifier_to_be_none(
     application: ExerciseApplication,
 ) -> None:
-    exercise_id = application.add_exercise(
+    exercise_uuid = application.add_exercise(
         prompt="What is Python?",
         answer="A programming language.",
         identifier=None,
     )
 
-    assert exercise_id is not None
+    assert exercise_uuid is not None
 
 
 # update_exercise --------------------------------------------------------------
 
 
 def test_update_exercise_success(application: ExerciseApplication) -> None:
-    existing_exercise_id = application.add_exercise(
+    existing_exercise_uuid = application.add_exercise(
         prompt="prompt",
         answer="answer",
     )
 
     updated_exercise = Exercise(
-        id=existing_exercise_id,
+        uuid=existing_exercise_uuid,
         identifier="updated-exercise",
         prompt="updated prompt",
         answer="updated answer",
     )
 
-    updated_exercise_id = application.update_exercise(updated_exercise)
+    updated_exercise_uuid = application.update_exercise(updated_exercise)
 
-    assert existing_exercise_id == updated_exercise_id
+    assert existing_exercise_uuid == updated_exercise_uuid
 
     exercises = application.browse_exercises(identifier="updated-exercise")
 
-    assert exercises[0].id == updated_exercise_id
+    assert exercises[0].uuid == updated_exercise_uuid
     assert exercises[0].identifier == "updated-exercise"
     assert exercises[0].prompt == "updated prompt"
     assert exercises[0].answer == "updated answer"
@@ -279,13 +279,13 @@ def test_update_exercise_success(application: ExerciseApplication) -> None:
 def test_update_exercise_raises_if_invalid_identifier(
     application: ExerciseApplication,
 ) -> None:
-    existing_exercise_id = application.add_exercise(
+    existing_exercise_uuid = application.add_exercise(
         prompt="prompt",
         answer="answer",
     )
 
     updated_exercise = Exercise(
-        id=existing_exercise_id,
+        uuid=existing_exercise_uuid,
         identifier="invalid identifier",
         prompt="updated prompt",
         answer="updated answer",
@@ -300,11 +300,11 @@ def test_update_exercise_raises_if_invalid_identifier(
         application.update_exercise(updated_exercise)
 
 
-def test_update_exercise_raises_if_non_existent_id(
+def test_update_exercise_raises_if_non_existent_uuid(
     application: ExerciseApplication,
 ) -> None:
     exercise = Exercise(prompt="prompt", answer="answer")
-    with pytest.raises(InvalidExerciseError, match="No exercise found with id"):
+    with pytest.raises(InvalidExerciseError, match="No exercise found with uuid"):
         application.update_exercise(exercise)
 
 
@@ -317,7 +317,7 @@ def test_update_exercise_raises_if_existing_identifier(
         answer="answer1",
     )
 
-    exercise2_id = application.add_exercise(
+    exercise2_uuid = application.add_exercise(
         identifier="exercise2",
         prompt="prompt2",
         answer="answer2",
@@ -326,7 +326,7 @@ def test_update_exercise_raises_if_existing_identifier(
     assert len(application.browse_exercises()) == 2
 
     updated_exercise2 = Exercise(
-        id=exercise2_id,
+        uuid=exercise2_uuid,
         identifier="exercise1",
         prompt="updated prompt2",
         answer="updated answer2",
@@ -342,45 +342,45 @@ def test_update_exercise_raises_if_existing_identifier(
 def test_update_exercise_success_with_the_same_identifier(
     application: ExerciseApplication,
 ) -> None:
-    exercise_id = application.add_exercise(
+    exercise_uuid = application.add_exercise(
         identifier="exercise1",
         prompt="prompt1",
         answer="answer1",
     )
 
     updated_exercise = Exercise(
-        id=exercise_id,
+        uuid=exercise_uuid,
         identifier="exercise1",
         prompt="updated_prompt",
         answer="updated_answer",
     )
 
-    exercise_id = application.update_exercise(updated_exercise)
+    exercise_uuid = application.update_exercise(updated_exercise)
 
-    assert exercise_id is not None
-    assert isinstance(exercise_id, UUID)
-
-
-# get_exercise_by_id -----------------------------------------------------------
+    assert exercise_uuid is not None
+    assert isinstance(exercise_uuid, UUID)
 
 
-def test_get_exercise_by_id(application: ExerciseApplication) -> None:
-    exercise_id = application.add_exercise(prompt="prompt", answer="answer")
+# get_exercise_by_uuid -----------------------------------------------------------
 
-    assert exercise_id is not None
 
-    exercise = application.get_exercise_by_id(exercise_id)
+def test_get_exercise_by_uuid(application: ExerciseApplication) -> None:
+    exercise_uuid = application.add_exercise(prompt="prompt", answer="answer")
 
-    assert exercise.id == exercise_id
+    assert exercise_uuid is not None
+
+    exercise = application.get_exercise_by_uuid(exercise_uuid)
+
+    assert exercise.uuid == exercise_uuid
     assert exercise.prompt == "prompt"
     assert exercise.answer == "answer"
 
 
-def test_get_exercise_by_id_raises_if_no_exercise(
+def test_get_exercise_by_uuid_raises_if_no_exercise(
     application: ExerciseApplication,
 ) -> None:
     with pytest.raises(InvalidExerciseError):
-        application.get_exercise_by_id(uuid7())
+        application.get_exercise_by_uuid(uuid7())
 
 
 # get_exercise_by_identifier ---------------------------------------------------
@@ -388,16 +388,16 @@ def test_get_exercise_by_id_raises_if_no_exercise(
 
 def test_get_exercise_by_identifer(application: ExerciseApplication) -> None:
     identifier = "exercise1"
-    exercise_id = application.add_exercise(
+    exercise_uuid = application.add_exercise(
         prompt="prompt",
         answer="answer",
         identifier=identifier,
     )
-    assert exercise_id is not None
+    assert exercise_uuid is not None
 
     exercise = application.get_exercise_by_identifier(identifier)
 
-    assert exercise.id == exercise_id
+    assert exercise.uuid == exercise_uuid
     assert exercise.identifier == identifier
     assert exercise.prompt == "prompt"
     assert exercise.answer == "answer"

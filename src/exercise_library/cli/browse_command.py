@@ -12,7 +12,7 @@ def browse_exercises(
         return
 
     for exercise in exercises:
-        print(f"\n[{exercise.id}]")
+        print(f"\n[{exercise.uuid}]")
 
         if exercise.identifier:
             print(f"Identifier: {exercise.identifier}")

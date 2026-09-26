@@ -67,14 +67,14 @@ class ExerciseApplication:
         )
 
         try:
-            exercise_id = self.repository.add(exercise)
+            exercise_uuid = self.repository.add(exercise)
 
         except DuplicateIdentifierError as error:
             raise InvalidExerciseError(
                 f"Exercise identifier already exists: {identifier}."
             ) from error
 
-        return exercise_id
+        return exercise_uuid
 
     def browse_exercises(
         self,
@@ -101,21 +101,21 @@ class ExerciseApplication:
             raise InvalidExerciseError(invalid_identifier_msg(exercise.identifier))
 
         try:
-            exercise_id = self.repository.update(exercise)
+            exercise_uuid = self.repository.update(exercise)
         except InvalidExerciseValues as exc:
             raise InvalidExerciseError(
-                f"No exercise found with id {str(exercise.id)}"
+                f"No exercise found with uuid {str(exercise.uuid)}"
             ) from exc
         except DuplicateIdentifierError as exc:
             raise InvalidExerciseError(
                 f"Exercise identifier already exists: {exercise.identifier}"
             ) from exc
 
-        return exercise_id
+        return exercise_uuid
 
-    def get_exercise_by_id(self, id: UUID) -> Exercise:
+    def get_exercise_by_uuid(self, uuid: UUID) -> Exercise:
         try:
-            return self.repository.get_by_id(id)
+            return self.repository.get_by_uuid(uuid)
         except InvalidExerciseValues as exc:
             raise InvalidExerciseError(str(exc)) from exc
 

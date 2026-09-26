@@ -15,7 +15,7 @@ def test_migrate_creates_schema() -> None:
     columns = connection.execute("PRAGMA table_info(exercises)").fetchall()
 
     assert [column[1] for column in columns] == [
-        "id",
+        "uuid",
         "identifier",
         "prompt",
         "answer",

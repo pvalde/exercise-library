@@ -80,14 +80,14 @@ def main() -> int:
             if args.interactive:
                 edit_exercise_env_editor(
                     application=application,
-                    exercise_id=args.id,
+                    exercise_uuid=args.uuid,
                     identifier=args.identifier,
                 )
 
             else:
                 edit_exercise(
                     application=application,
-                    exercise_id=args.id,
+                    exercise_uuid=args.uuid,
                     identifier=args.identifier,
                     new_prompt=args.new_prompt,
                     new_answer=args.new_answer,
@@ -99,7 +99,7 @@ def main() -> int:
         elif args.command == "show":
             show_exercise(
                 application,
-                id=args.id,
+                uuid=args.uuid,
                 identifier=args.identifier,
                 show_prompt=(args.field != "answer"),
                 show_answer=(args.field != "prompt"),
