@@ -22,6 +22,10 @@ class InvalidExerciseError(ExerciseApplicationError):
     pass
 
 
+class InvalidDepthError(ExerciseApplicationError):
+    pass
+
+
 INVALID_IDENTIFIER_MSG = (
     "Identifier can only contain letters, numbers, "
     + "dash, underscore, and '::' separators."
@@ -33,6 +37,12 @@ def invalid_identifier_msg(identifier: str) -> str:
         f"'{identifier}' is an invalid identifier.\nIt can only contain "
         + "letters, numbers, dash, underscore and '::' separators."
     )
+
+
+@dataclass
+class IdentifierPrefix:
+    prefix: str
+    exercise_count: int
 
 
 @dataclass
@@ -132,3 +142,49 @@ class ExerciseApplication:
 
     def identifier_exists(self, identifier: str) -> bool:
         return self.repository.identifier_exists(identifier)
+
+    def list_identifier_prefixes(
+        self,
+        identifier: str | None = None,
+        depth: int | None = None,
+    ) -> list[IdentifierPrefix]:
+        if identifier is not None and not self._is_valid_identifier(identifier):
+            raise InvalidExerciseError(invalid_identifier_msg(identifier))
+
+        if depth is not None and depth < 1:
+            raise InvalidDepthError("Depth must be a positive integer.")
+
+        exercises = [
+            exercise
+            for exercise in self.repository.browse(identifier)
+            if exercise.identifier is not None
+        ]
+
+        prefixes: set[str] = set()
+
+        for exercise in exercises:
+            assert exercise.identifier is not None
+            parts = exercise.identifier.split("::")
+            if depth is not None:
+                parts = parts[:depth]
+            prefixes.add("::".join(parts))
+
+        id_prefixes: list[IdentifierPrefix] = list()
+        for prefix in sorted(prefixes):
+            count = 0
+
+            for exercise in exercises:
+                assert exercise.identifier is not None
+                if exercise.identifier == prefix or exercise.identifier.startswith(
+                    f"{prefix}::"
+                ):
+                    count += 1
+
+            id_prefixes.append(
+                IdentifierPrefix(
+                    prefix=prefix,
+                    exercise_count=count,
+                )
+            )
+
+        return id_prefixes

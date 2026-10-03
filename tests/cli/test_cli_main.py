@@ -148,3 +148,53 @@ def test_add_then_browse(
     assert "IDENTIFIER" in captured.out
     assert "PROMPT" in captured.out
     assert "(no identifier)" in captured.out
+
+
+def test_identifiers_command(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_main(monkeypatch, "add", "p1", "a1", "-I", "book::chapter01::exercise01")
+    run_main(monkeypatch, "add", "p2", "a2", "-I", "book::chapter02::exercise01")
+    capsys.readouterr()
+
+    exit_code = run_main(monkeypatch, "identifiers")
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out == (
+        "book::chapter01::exercise01\nbook::chapter02::exercise01\n"
+    )
+    assert captured.err == ""
+
+
+def test_identifiers_command_with_depth_and_count(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_main(monkeypatch, "add", "p1", "a1", "-I", "book::chapter01::exercise01")
+    run_main(monkeypatch, "add", "p2", "a2", "-I", "book::chapter01::exercise02")
+    run_main(monkeypatch, "add", "p3", "a3", "-I", "book::chapter02::exercise01")
+    capsys.readouterr()
+
+    exit_code = run_main(monkeypatch, "identifiers", "--depth", "2", "--count")
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out == ("book::chapter01 (2)\nbook::chapter02 (1)\n")
+    assert captured.err == ""
+
+
+def test_identifiers_command_without_matches(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = run_main(monkeypatch, "identifiers")
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out == "No identifiers found.\n"
+    assert captured.err == ""

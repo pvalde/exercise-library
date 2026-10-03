@@ -178,6 +178,37 @@ class Parser:
             help="Open exercise in default web browser.",
         )
 
+        # ----------------------------------------------------------------------
+        # Identifiers command
+        # ----------------------------------------------------------------------
+        self._identifiers_parser = subparsers.add_parser(
+            "identifiers",
+            help="List identifier prefixes",
+        )
+
+        self._identifiers_parser.add_argument(
+            "-I",
+            "--identifier",
+            type=str,
+            default=None,
+            help="List prefixes under this identifier",
+        )
+
+        self._identifiers_parser.add_argument(
+            "-d",
+            "--depth",
+            type=self._positive_int,
+            default=None,
+            help="Maximum number of identifier segments",
+        )
+
+        self._identifiers_parser.add_argument(
+            "-c",
+            "--count",
+            action="store_true",
+            help="Show exercise counts for each prefix identifier.",
+        )
+
         shtab.add_argument_to(self._parser)
 
     def _validate_add_args(
@@ -254,3 +285,9 @@ class Parser:
             )
 
         return path
+
+    def _positive_int(self, value: str) -> int:
+        number = int(value)
+        if number < 1:
+            raise argparse.ArgumentTypeError("must be a positive integer")
+        return number

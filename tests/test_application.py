@@ -2,7 +2,12 @@ from uuid import UUID, uuid7
 
 import pytest
 
-from exercise_library.application import ExerciseApplication, InvalidExerciseError
+from exercise_library.application import (
+    ExerciseApplication,
+    IdentifierPrefix,
+    InvalidDepthError,
+    InvalidExerciseError,
+)
 from exercise_library.database import initialize
 from exercise_library.models import Exercise
 from exercise_library.repository import ExerciseRepository
@@ -418,3 +423,174 @@ def test_get_exercise_by_identifer_raises_if_non_existent_identifier(
 ) -> None:
     with pytest.raises(InvalidExerciseError, match="Exercise not found"):
         application.get_exercise_by_identifier("non-existent-identifier")
+
+
+# list_identifier_prefixes ------------------------------------------------------
+
+
+def test_list_identifier_prefixes_returns_empty_list(
+    application: ExerciseApplication,
+) -> None:
+    assert application.list_identifier_prefixes() == []
+
+
+def test_list_identifier_prefixes_returns_all_prefixes_sorted(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(
+        prompt="p1",
+        answer="a1",
+        identifier="book::chapter01::exercise01",
+    )
+    application.add_exercise(
+        prompt="p2",
+        answer="a2",
+        identifier="book::chapter02::exercise01",
+    )
+    application.add_exercise(
+        prompt="p3",
+        answer="a3",
+        identifier="other",
+    )
+
+    prefixes = application.list_identifier_prefixes()
+
+    assert prefixes == [
+        IdentifierPrefix(prefix="book::chapter01::exercise01", exercise_count=1),
+        IdentifierPrefix(prefix="book::chapter02::exercise01", exercise_count=1),
+        IdentifierPrefix(prefix="other", exercise_count=1),
+    ]
+
+
+def test_list_identifier_prefixes_ignores_exercises_without_identifier(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(prompt="p1", answer="a1")
+    application.add_exercise(
+        prompt="p2",
+        answer="a2",
+        identifier="book::chapter01",
+    )
+
+    prefixes = application.list_identifier_prefixes()
+
+    assert prefixes == [
+        IdentifierPrefix(prefix="book::chapter01", exercise_count=1),
+    ]
+
+
+def test_list_identifier_prefixes_respects_depth(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(
+        prompt="p1",
+        answer="a1",
+        identifier="book::chapter01::exercise01",
+    )
+    application.add_exercise(
+        prompt="p2",
+        answer="a2",
+        identifier="book::chapter01::exercise02",
+    )
+    application.add_exercise(
+        prompt="p3",
+        answer="a3",
+        identifier="book::chapter02::exercise01",
+    )
+
+    prefixes = application.list_identifier_prefixes(depth=2)
+
+    assert prefixes == [
+        IdentifierPrefix(prefix="book::chapter01", exercise_count=2),
+        IdentifierPrefix(prefix="book::chapter02", exercise_count=1),
+    ]
+
+
+def test_list_identifier_prefixes_filters_by_identifier(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(
+        prompt="p1",
+        answer="a1",
+        identifier="book::chapter01::exercise01",
+    )
+    application.add_exercise(
+        prompt="p2",
+        answer="a2",
+        identifier="book::chapter02::exercise01",
+    )
+
+    prefixes = application.list_identifier_prefixes(identifier="book::chapter01")
+
+    assert prefixes == [
+        IdentifierPrefix(prefix="book::chapter01::exercise01", exercise_count=1),
+    ]
+
+
+def test_list_identifier_prefixes_combines_identifier_and_depth(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(
+        prompt="p1",
+        answer="a1",
+        identifier="book::chapter01::exercise01",
+    )
+    application.add_exercise(
+        prompt="p2",
+        answer="a2",
+        identifier="book::chapter01::exercise02",
+    )
+    application.add_exercise(
+        prompt="p3",
+        answer="a3",
+        identifier="book::chapter02::exercise01",
+    )
+
+    prefixes = application.list_identifier_prefixes(
+        identifier="book",
+        depth=2,
+    )
+
+    assert prefixes == [
+        IdentifierPrefix(prefix="book::chapter01", exercise_count=2),
+        IdentifierPrefix(prefix="book::chapter02", exercise_count=1),
+    ]
+
+
+def test_list_identifier_prefixes_counts_exact_prefix_matches(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(prompt="p1", answer="a1", identifier="book")
+    application.add_exercise(
+        prompt="p2",
+        answer="a2",
+        identifier="book::chapter01",
+    )
+    application.add_exercise(
+        prompt="p3",
+        answer="a3",
+        identifier="book::chapter01::exercise01",
+    )
+
+    prefixes = application.list_identifier_prefixes()
+
+    assert prefixes[0] == IdentifierPrefix(prefix="book", exercise_count=3)
+
+
+def test_list_identifier_prefixes_raises_if_invalid_identifier(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(
+        InvalidExerciseError,
+        match="'invalid identifier' is an invalid identifier.",
+    ):
+        application.list_identifier_prefixes(identifier="invalid identifier")
+
+
+@pytest.mark.parametrize("depth", [0, -1])
+def test_list_identifier_prefixes_raises_if_invalid_depth(
+    application: ExerciseApplication,
+    depth: int,
+) -> None:
+    with pytest.raises(InvalidDepthError, match="Depth must be a positive integer."):
+        application.list_identifier_prefixes(depth=depth)

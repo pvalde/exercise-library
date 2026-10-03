@@ -4,6 +4,7 @@ from logging.handlers import RotatingFileHandler
 
 from exercise_library.application import ExerciseApplication, ExerciseApplicationError
 from exercise_library.cli.exceptions import CLIError
+from exercise_library.cli.identifiers_command import list_identifiers
 from exercise_library.cli.show_command import show_exercise
 from exercise_library.config import APP_NAME
 from exercise_library.database import initialize
@@ -104,6 +105,14 @@ def main() -> int:
                 show_prompt=(args.field != "answer"),
                 show_answer=(args.field != "prompt"),
                 show_in_webbrowser=args.open_in_browser,
+            )
+
+        elif args.command == "identifiers":
+            list_identifiers(
+                application,
+                identifier=args.identifier,
+                depth=args.depth,
+                count=args.count,
             )
 
         logger.info("%s completed successfully.", APP_NAME)

@@ -601,3 +601,80 @@ def test_show_command_rejects_unknown_field(capsys: pytest.CaptureFixture[str]) 
         "show: error: argument --field/-f:"
         + " invalid choice: 'unknown' (choose from 'prompt', 'answer')"
     ) in captured.err
+
+
+# ------------------------------------------------------------------------------
+# Identifiers command
+# ------------------------------------------------------------------------------
+
+
+def test_identifiers_command_defaults() -> None:
+    args = Parser().get_args(["identifiers"])
+
+    assert args.command == "identifiers"
+    assert args.identifier is None
+    assert args.depth is None
+    assert args.count is False
+
+
+def test_identifiers_command_with_identifier() -> None:
+    args = Parser().get_args(["identifiers", "--identifier", "book"])
+
+    assert args.identifier == "book"
+
+    args = Parser().get_args(["identifiers", "-I", "book"])
+
+    assert args.identifier == "book"
+
+
+def test_identifiers_command_with_depth() -> None:
+    args = Parser().get_args(["identifiers", "--depth", "2"])
+
+    assert args.depth == 2
+
+    args = Parser().get_args(["identifiers", "-d", "3"])
+
+    assert args.depth == 3
+
+
+def test_identifiers_command_with_count() -> None:
+    args = Parser().get_args(["identifiers", "--count"])
+
+    assert args.count is True
+
+    args = Parser().get_args(["identifiers", "-c"])
+
+    assert args.count is True
+
+
+def test_identifiers_command_gets_args() -> None:
+    args = Parser().get_args(
+        ["identifiers", "-I", "book", "-d", "2", "-c"],
+    )
+
+    assert args.command == "identifiers"
+    assert args.identifier == "book"
+    assert args.depth == 2
+    assert args.count is True
+
+
+@pytest.mark.parametrize("value", ["0", "-1"])
+def test_identifiers_command_rejects_non_positive_depth(
+    value: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["identifiers", "--depth", value])
+
+    assert exc_info.value.code == 2
+    assert "must be a positive integer" in capsys.readouterr().err
+
+
+def test_identifiers_command_rejects_non_integer_depth(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["identifiers", "--depth", "not-a-number"])
+
+    assert exc_info.value.code == 2
+    assert "invalid" in capsys.readouterr().err
