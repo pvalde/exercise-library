@@ -1,3 +1,6 @@
+import os
+import shutil
+
 import pytest
 
 from exercise_library.application import ExerciseApplication
@@ -35,20 +38,22 @@ def test_browse_exercises_prints_exercises(
 
     output = capsys.readouterr().out
 
-    assert f"[{first_uuid}]" in output
-    assert "Prompt:\nWhat is Python?" in output
-    assert "Answer:\nA programming language." in output
+    assert str(first_uuid) in output
+    assert "What is Python?" in output
+    assert str(second_uuid) in output
+    assert "What is pytest?" in output
 
-    assert f"[{second_uuid}]" in output
-    assert "Prompt:\nWhat is pytest?" in output
-    assert "Answer:\nA testing framework." in output
+    assert "UUID" in output
+    assert "IDENTIFIER" in output
+    assert "PROMPT" in output
 
-    assert output.count("-" * 40) == 2
+    assert "(no identifier)" in output
 
 
 def test_browse_exercises_prints_filtered_exercises(
     application: ExerciseApplication,
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     exercise_uuid = application.repository.add(
         Exercise(
@@ -58,6 +63,12 @@ def test_browse_exercises_prints_filtered_exercises(
         )
     )
 
+    monkeypatch.setattr(
+        shutil,
+        "get_terminal_size",
+        lambda: os.terminal_size((200, 24)),
+    )
+
     browse_exercises(
         application,
         "book::chapter01",
@@ -65,10 +76,38 @@ def test_browse_exercises_prints_filtered_exercises(
 
     output = capsys.readouterr().out
 
-    assert f"[{exercise_uuid}]" in output
+    assert str(exercise_uuid) in output
     assert "book::chapter01::exercise05" in output
-    assert "Prompt:\nWhat is the derivative of x^2?" in output
-    assert "Answer:\n2x" in output
+    assert "What is the derivative of x^2?" in output
+
+
+def test_browse_exercises_truncates_prompt_when_terminal_is_narrow(
+    application: ExerciseApplication,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exercise_uuid = application.repository.add(
+        Exercise(
+            identifier="book::chapter01::exercise05",
+            prompt="What is the derivative of x^2?",
+            answer="2x",
+        )
+    )
+
+    monkeypatch.setattr(
+        shutil,
+        "get_terminal_size",
+        lambda: os.terminal_size((40, 24)),
+    )
+
+    browse_exercises(application, None)
+
+    output = capsys.readouterr().out
+
+    assert str(exercise_uuid) in output
+    assert "book::chapter01::exercise05" in output
+    assert "What is the deriv..." in output
+    assert "What is the derivative of x^2?" not in output
 
 
 def test_browse_exercises_prints_identifier(
@@ -87,7 +126,7 @@ def test_browse_exercises_prints_identifier(
 
     output = capsys.readouterr().out
 
-    assert "Identifier: book::chapter01::exercise05" in output
+    assert "book::chapter01::exercise05" in output
 
 
 def test_browse_exercises_does_not_print_missing_identifier(
@@ -105,7 +144,7 @@ def test_browse_exercises_does_not_print_missing_identifier(
 
     output = capsys.readouterr().out
 
-    assert "Identifier:" not in output
+    assert "(no identifier)" in output
 
 
 def test_browse_exercises_preserves_multiline_content(
@@ -123,5 +162,5 @@ def test_browse_exercises_preserves_multiline_content(
 
     output = capsys.readouterr().out
 
-    assert "Prompt:\nLine one\nLine two" in output
-    assert "Answer:\nAnswer one\nAnswer two" in output
+    assert "Line one" in output
+    assert "Line two" not in output

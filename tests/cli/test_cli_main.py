@@ -57,7 +57,6 @@ def test_browse_exercises(
 
     assert exit_code == 0
     assert "What is 2 + 2?" in captured.out
-    assert "4" in captured.out
     assert captured.err == ""
 
 
@@ -106,7 +105,6 @@ def test_browse_exercises_with_identifier(
 
     assert exit_code == 0
     assert "What is 2 + 2?" in captured.out
-    assert "4" in captured.out
     assert captured.err == ""
 
 
@@ -146,4 +144,7 @@ def test_add_then_browse(
     captured = capsys.readouterr()
 
     assert "What is Python?" in captured.out
-    assert "A programming language." in captured.out
+    assert "UUID" in captured.out
+    assert "IDENTIFIER" in captured.out
+    assert "PROMPT" in captured.out
+    assert "(no identifier)" in captured.out
