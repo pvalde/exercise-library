@@ -9,7 +9,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-from exercise_library.config import APP_NAME, DATABASE_NAME
+from exercise_library.config import APP_NAME, DATABASE_NAME, MEDIA_DIR_NAME
 from exercise_library.locking import application_lock
 from exercise_library.paths import app_backup_dir_path, app_data_dir_path
 
@@ -32,6 +32,8 @@ BACKUP_REL_FILE_PATHS: tuple[Path, ...] = (
     *SQLITE_DATABASES_REL_PATHS,
     *OTHER_REL_FILE_PATHS,
 )
+
+BACKUP_REL_DIR_PATHS: tuple[Path, ...] = (Path(MEDIA_DIR_NAME),)
 
 
 def create_backup(output: Path | None = None) -> Path:
@@ -173,32 +175,64 @@ def _copy_whitelisted_files(
                 dst,
             )
         else:
-            try:
-                shutil.copy2(src, dst)
+            _copy_regular_file(src, dst)
 
-            except PermissionError as exc:
-                raise BackupError(
-                    "The file could not be copied because access was denied. "
-                    "Check your permissions or choose a different destination."
-                ) from exc
+    assert all(not path.is_absolute() for path in BACKUP_REL_DIR_PATHS)
 
-            except OSError as exc:
-                if exc.errno == errno.ENOSPC:
-                    raise BackupError(
-                        "There isn't enough disk space to copy the file. "
-                        "Free some space and try again."
-                    ) from exc
+    for rel_path in BACKUP_REL_DIR_PATHS:
+        src_dir = data_dir_path / rel_path
+        dst_dir = staging_dir_path / rel_path
 
-                if exc.errno == errno.EROFS:
-                    raise BackupError(
-                        "The destination is read-only. Choose a writable destination."
-                    ) from exc
+        if not src_dir.exists():
+            continue
 
-                else:
-                    raise RuntimeError(
-                        "The file could not be copied because of an unexpected "
-                        "system error.",
-                    ) from exc
+        if src_dir.is_symlink():
+            raise BackupError(f"Symlinks are not supported in backups: {src_dir}")
+
+        if not src_dir.is_dir():
+            raise BackupError(f"Backup entry is not a directory: {src_dir}")
+
+        for src in sorted(src_dir.rglob("*")):
+            if src.is_symlink():
+                raise BackupError(f"Symlinks are not supported in backups: {src}")
+
+            if src.is_dir():
+                continue
+
+            if not src.is_file():
+                raise BackupError(f"Backup entry is not a regular file: {src}")
+
+            dst = dst_dir / src.relative_to(src_dir)
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            _copy_regular_file(src, dst)
+
+
+def _copy_regular_file(src: Path, dst: Path) -> None:
+    try:
+        shutil.copy2(src, dst)
+
+    except PermissionError as exc:
+        raise BackupError(
+            "The file could not be copied because access was denied. "
+            "Check your permissions or choose a different destination."
+        ) from exc
+
+    except OSError as exc:
+        if exc.errno == errno.ENOSPC:
+            raise BackupError(
+                "There isn't enough disk space to copy the file. "
+                "Free some space and try again."
+            ) from exc
+
+        if exc.errno == errno.EROFS:
+            raise BackupError(
+                "The destination is read-only. Choose a writable destination."
+            ) from exc
+
+        else:
+            raise RuntimeError(
+                "The file could not be copied because of an unexpected system error.",
+            ) from exc
 
 
 def _sqlite_backup(src: Path, dst: Path) -> None:

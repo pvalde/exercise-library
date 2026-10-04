@@ -9,6 +9,8 @@ from unittest.mock import Mock
 import pytest
 
 import exercise_library.backup as backup
+from exercise_library.config import APP_NAME
+from exercise_library.database import initialize
 from exercise_library.paths import app_backup_dir_path, app_data_dir_path
 
 
@@ -320,6 +322,97 @@ def test_copy_whitelisted_files_creates_staging_dst_files(
     staging_file_path = app_backup_dir_path() / "staging" / file_path.name
     assert staging_file_path.exists()
     assert staging_file_path.is_file()
+
+
+# _copy_whitelisted_files - directories ----------------------------------------
+
+
+@pytest.fixture
+def no_file_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(backup, "BACKUP_REL_FILE_PATHS", ())
+
+
+def test_copy_whitelisted_dirs_backup_paths_are_relative() -> None:
+    assert all(not path.is_absolute() for path in backup.BACKUP_REL_DIR_PATHS)
+
+
+def test_copy_whitelisted_dirs_skips_missing_directory(
+    tmp_path: Path,
+    no_file_paths: None,
+) -> None:
+    app_data_dir = app_data_dir_path()
+    staging = tmp_path / "staging"
+
+    backup._copy_whitelisted_files(app_data_dir, staging, Mock())
+
+    assert not (staging / "media").exists()
+
+
+def test_copy_whitelisted_dirs_copies_media_files(
+    tmp_path: Path,
+    no_file_paths: None,
+) -> None:
+    app_data_dir = app_data_dir_path()
+    media_dir = app_data_dir / "media"
+    (media_dir / "nested").mkdir(parents=True)
+    (media_dir / "cat.png").write_bytes(b"cat")
+    (media_dir / "nested" / "dog.jpg").write_bytes(b"dog")
+
+    staging = tmp_path / "staging"
+
+    backup._copy_whitelisted_files(app_data_dir, staging, Mock())
+
+    assert (staging / "media" / "cat.png").read_bytes() == b"cat"
+    assert (staging / "media" / "nested" / "dog.jpg").read_bytes() == b"dog"
+
+
+def test_copy_whitelisted_dirs_raises_if_media_is_symlink(
+    tmp_path: Path,
+    no_file_paths: None,
+) -> None:
+    app_data_dir = app_data_dir_path()
+    target = tmp_path / "target"
+    target.mkdir()
+    os.symlink(target, app_data_dir / "media")
+
+    with pytest.raises(
+        backup.BackupError,
+        match="Symlinks are not supported in backups:",
+    ):
+        backup._copy_whitelisted_files(app_data_dir, tmp_path / "staging", Mock())
+
+
+def test_copy_whitelisted_dirs_raises_if_entry_is_a_file(
+    tmp_path: Path,
+    no_file_paths: None,
+) -> None:
+    app_data_dir = app_data_dir_path()
+    (app_data_dir / "media").write_text("not a directory")
+
+    with pytest.raises(
+        backup.BackupError,
+        match="Backup entry is not a directory:",
+    ):
+        backup._copy_whitelisted_files(app_data_dir, tmp_path / "staging", Mock())
+
+
+def test_copy_whitelisted_dirs_raises_if_contained_file_is_symlink(
+    tmp_path: Path,
+    no_file_paths: None,
+) -> None:
+    app_data_dir = app_data_dir_path()
+    media_dir = app_data_dir / "media"
+    media_dir.mkdir(parents=True)
+
+    target = tmp_path / "target"
+    target.write_bytes(b"target")
+    os.symlink(target, media_dir / "link.png")
+
+    with pytest.raises(
+        backup.BackupError,
+        match="Symlinks are not supported in backups:",
+    ):
+        backup._copy_whitelisted_files(app_data_dir, tmp_path / "staging", Mock())
 
 
 # _sqlite_backup ---------------------------------------------------------------
@@ -792,3 +885,39 @@ def test_write_zip_can_be_read_after_reopening_archive(
         with zipfile.ZipFile(output, mode="r") as archive:
             assert archive.testzip() is None
             assert archive.read(f"{DUMMY_APP_NAME}/hello.txt") == b"hello"
+
+
+# create_backup -----------------------------------------------------------------
+
+
+def test_create_backup_includes_media(tmp_path: Path) -> None:
+    initialize()
+
+    media_dir = app_data_dir_path() / "media"
+    (media_dir / "nested").mkdir(parents=True)
+    (media_dir / "diagram.png").write_bytes(b"image")
+    (media_dir / "nested" / "photo.jpg").write_bytes(b"photo")
+
+    output = tmp_path / "backup.zip"
+
+    backup.create_backup(output)
+
+    with zipfile.ZipFile(output) as archive:
+        names = set(archive.namelist())
+
+        assert f"{APP_NAME}/media/diagram.png" in names
+        assert f"{APP_NAME}/media/nested/photo.jpg" in names
+        assert archive.read(f"{APP_NAME}/media/diagram.png") == b"image"
+
+
+def test_create_backup_without_media(tmp_path: Path) -> None:
+    initialize()
+
+    output = tmp_path / "backup.zip"
+
+    backup.create_backup(output)
+
+    with zipfile.ZipFile(output) as archive:
+        assert not any(
+            name.startswith(f"{APP_NAME}/media/") for name in archive.namelist()
+        )
