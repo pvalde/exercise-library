@@ -6,11 +6,13 @@ from uuid import UUID, uuid7
 import pytest
 
 from exercise_library.database import initialize
-from exercise_library.models import Exercise
+from exercise_library.models import Exercise, Media
 from exercise_library.repository import (
     DuplicateIdentifierError,
+    DuplicateMediaError,
     ExerciseRepository,
     InvalidExerciseValues,
+    MediaRepository,
 )
 
 # FIXTURES ---------------------------------------------------------------------
@@ -573,3 +575,103 @@ def test_identifier_exists(
 
     assert repo.identifier_exists(existing_exercise.identifier)
     assert not repo.identifier_exists("non-existent-identifier")
+
+
+# MediaRepository --------------------------------------------------------------
+
+MEDIA_SHA256 = "a" * 64
+
+
+def _media(name: str = "diagram.png") -> Media:
+    return Media(
+        name=name,
+        media_type="image/png",
+        sha256=MEDIA_SHA256,
+        size_bytes=123,
+    )
+
+
+def test_add_media_persists_row() -> None:
+    connection = initialize()
+
+    MediaRepository(connection).add(_media())
+
+    row = connection.execute(
+        "SELECT name, media_type, sha256, size_bytes FROM media WHERE name = ?",
+        ("diagram.png",),
+    ).fetchone()
+
+    assert row is not None
+    assert row["media_type"] == "image/png"
+    assert row["sha256"] == MEDIA_SHA256
+    assert row["size_bytes"] == 123
+
+
+def test_add_media_sets_created_at() -> None:
+    connection = initialize()
+
+    MediaRepository(connection).add(_media())
+
+    row = connection.execute(
+        "SELECT created_at FROM media WHERE name = ?",
+        ("diagram.png",),
+    ).fetchone()
+
+    assert row is not None
+    assert isinstance(row["created_at"], int)
+
+
+def test_add_media_raises_on_duplicate_name() -> None:
+    connection = initialize()
+    repository = MediaRepository(connection)
+
+    repository.add(_media())
+
+    with pytest.raises(DuplicateMediaError, match="Media name already exists"):
+        repository.add(_media())
+
+
+def test_get_media_returns_media() -> None:
+    connection = initialize()
+    repository = MediaRepository(connection)
+
+    repository.add(_media())
+
+    media = repository.get("diagram.png")
+
+    assert media == _media()
+
+
+def test_get_media_returns_none_when_missing() -> None:
+    connection = initialize()
+
+    assert MediaRepository(connection).get("missing.png") is None
+
+
+def test_media_exists() -> None:
+    connection = initialize()
+    repository = MediaRepository(connection)
+
+    repository.add(_media())
+
+    assert repository.exists("diagram.png")
+    assert not repository.exists("missing.png")
+
+
+def test_list_all_media_orders_by_name() -> None:
+    connection = initialize()
+    repository = MediaRepository(connection)
+
+    repository.add(_media("zebra.png"))
+    repository.add(_media("apple.png"))
+
+    assert [media.name for media in repository.list_all()] == [
+        "apple.png",
+        "zebra.png",
+    ]
+
+
+def test_list_all_media_returns_empty_list() -> None:
+    connection = initialize()
+
+    assert MediaRepository(connection).list_all() == []

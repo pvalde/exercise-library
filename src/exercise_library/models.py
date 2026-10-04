@@ -8,3 +8,11 @@ class Exercise:
     answer: str
     identifier: str | None = None
     uuid: UUID | None = None
+
+
+@dataclass(frozen=True)
+class Media:
+    name: str
+    media_type: str
+    sha256: str
+    size_bytes: int

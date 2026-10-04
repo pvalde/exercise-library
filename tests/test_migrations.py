@@ -24,6 +24,46 @@ def test_migrate_creates_schema() -> None:
     ]
 
 
+def test_migrate_creates_media_table() -> None:
+    connection = sqlite3.connect(":memory:")
+
+    migrate(connection)
+
+    columns = connection.execute("PRAGMA table_info(media)").fetchall()
+
+    assert [column[1] for column in columns] == [
+        "name",
+        "media_type",
+        "sha256",
+        "size_bytes",
+        "created_at",
+    ]
+
+
+def test_migrate_from_v1_adds_media_table() -> None:
+    connection = sqlite3.connect(":memory:")
+
+    migrate(connection)
+    connection.execute("DROP TABLE media")
+    connection.execute("PRAGMA user_version = 1")
+    connection.commit()
+
+    migrate(connection)
+
+    version = connection.execute("PRAGMA user_version").fetchone()[0]
+
+    assert version == CURRENT_VERSION
+
+    tables = {
+        row[0]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+
+    assert "media" in tables
+
+
 def test_migrate_is_idempotent() -> None:
     connection = sqlite3.connect(":memory:")
 

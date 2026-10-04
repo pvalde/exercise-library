@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid7
 
 from exercise_library.locking import application_lock
-from exercise_library.models import Exercise
+from exercise_library.models import Exercise, Media
 
 
 class RepositoryError(Exception):
@@ -18,8 +18,16 @@ class DuplicateIdentifierError(RepositoryError):
     """Raised when an exercise identifier already exists."""
 
 
+class DuplicateMediaError(RepositoryError):
+    """Raised when a media name already exists."""
+
+
 class InvalidExerciseValues(RepositoryError):
     """Raises when some provided exercise's value is invalid."""
+
+
+def _now_unix_millis() -> int:
+    return int(datetime.now(tz=UTC).timestamp() * 1000)
 
 
 class ExerciseRepository:
@@ -230,3 +238,90 @@ class ExerciseRepository:
         row = cursor.fetchone()
 
         return bool(row[0])
+
+
+class MediaRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def add(self, media: Media) -> None:
+        with application_lock():
+            try:
+                self._connection.execute(
+                    """
+                    INSERT INTO media
+                    (name, media_type, sha256, size_bytes, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        media.name,
+                        media.media_type,
+                        media.sha256,
+                        media.size_bytes,
+                        _now_unix_millis(),
+                    ),
+                )
+                self._connection.commit()
+            except sqlite3.IntegrityError as error:
+                if "UNIQUE constraint failed: media.name" in str(error):
+                    raise DuplicateMediaError(
+                        f"Media name already exists: {media.name!r}"
+                    ) from error
+                raise
+
+    def get(self, name: str) -> Media | None:
+        cursor = self._connection.execute(
+            """
+            SELECT name, media_type, sha256, size_bytes
+            FROM media
+            WHERE name = ?;
+            """,
+            (name,),
+        )
+
+        row = cursor.fetchone()
+
+        if row is None:
+            return None
+
+        return Media(
+            name=row["name"],
+            media_type=row["media_type"],
+            sha256=row["sha256"],
+            size_bytes=row["size_bytes"],
+        )
+
+    def exists(self, name: str) -> bool:
+        cursor = self._connection.execute(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM media
+                WHERE name = ?
+            )
+            """,
+            (name,),
+        )
+
+        row = cursor.fetchone()
+
+        return bool(row[0])
+
+    def list_all(self) -> list[Media]:
+        cursor = self._connection.execute(
+            """
+            SELECT name, media_type, sha256, size_bytes
+            FROM media
+            ORDER BY name;
+            """
+        )
+
+        return [
+            Media(
+                name=row["name"],
+                media_type=row["media_type"],
+                sha256=row["sha256"],
+                size_bytes=row["size_bytes"],
+            )
+            for row in cursor.fetchall()
+        ]
