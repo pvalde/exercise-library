@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -198,3 +199,55 @@ def test_identifiers_command_without_matches(
     assert exit_code == 0
     assert captured.out == "No identifiers found.\n"
     assert captured.err == ""
+
+
+def test_media_add_and_list(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "diagram.png"
+    source.write_bytes(b"image")
+
+    exit_code = run_main(monkeypatch, "media", "add", str(source))
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out == "Media was successfully added: diagram.png\n"
+    assert captured.err == ""
+
+    exit_code = run_main(monkeypatch, "media", "list")
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out == "diagram.png\n"
+    assert captured.err == ""
+
+
+def test_media_list_without_media(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = run_main(monkeypatch, "media", "list")
+
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.out == "No media found.\n"
+    assert captured.err == ""
+
+
+def test_media_add_missing_file_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    missing = tmp_path / "missing.png"
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_main(monkeypatch, "media", "add", str(missing))
+
+    assert exc_info.value.code == 2
+    assert f"file does not exist: {missing}" in capsys.readouterr().err

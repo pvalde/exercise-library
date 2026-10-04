@@ -678,3 +678,60 @@ def test_identifiers_command_rejects_non_integer_depth(
 
     assert exc_info.value.code == 2
     assert "invalid" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------------------------
+# Media command
+# ------------------------------------------------------------------------------
+
+
+def test_media_add_gets_args(tmp_path: Path) -> None:
+    source = tmp_path / "diagram.png"
+    source.write_bytes(b"image")
+
+    args = Parser().get_args(["media", "add", str(source)])
+
+    assert args.command == "media"
+    assert args.media_command == "add"
+    assert args.path == source
+
+
+def test_media_add_rejects_missing_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    missing = tmp_path / "missing.png"
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["media", "add", str(missing)])
+
+    assert exc_info.value.code == 2
+    assert f"file does not exist: {missing}" in capsys.readouterr().err
+
+
+def test_media_add_rejects_directory(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["media", "add", str(tmp_path)])
+
+    assert exc_info.value.code == 2
+    assert f"not a file: {tmp_path}" in capsys.readouterr().err
+
+
+def test_media_list_gets_args() -> None:
+    args = Parser().get_args(["media", "list"])
+
+    assert args.command == "media"
+    assert args.media_command == "list"
+
+
+def test_media_requires_subcommand(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["media"])
+
+    assert exc_info.value.code == 2
+    assert "media_command" in capsys.readouterr().err

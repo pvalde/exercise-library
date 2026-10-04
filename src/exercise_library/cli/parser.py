@@ -209,6 +209,35 @@ class Parser:
             help="Show exercise counts for each prefix identifier.",
         )
 
+        # ----------------------------------------------------------------------
+        # Media command
+        # ----------------------------------------------------------------------
+        self._media_parser = subparsers.add_parser(
+            "media",
+            help="Manage media files",
+        )
+
+        media_subparsers = self._media_parser.add_subparsers(
+            dest="media_command",
+            required=True,
+        )
+
+        self._media_add_parser = media_subparsers.add_parser(
+            "add",
+            help="Add a media file",
+        )
+
+        self._media_add_parser.add_argument(
+            "path",
+            type=self._existing_file,
+            help="Path to the media file to add",
+        )
+
+        media_subparsers.add_parser(
+            "list",
+            help="List stored media",
+        )
+
         shtab.add_argument_to(self._parser)
 
     def _validate_add_args(
@@ -291,3 +320,14 @@ class Parser:
         if number < 1:
             raise argparse.ArgumentTypeError("must be a positive integer")
         return number
+
+    def _existing_file(self, value: str) -> Path:
+        path = Path(value).expanduser()
+
+        if not path.exists():
+            raise argparse.ArgumentTypeError(f"file does not exist: {path}")
+
+        if not path.is_file():
+            raise argparse.ArgumentTypeError(f"not a file: {path}")
+
+        return path

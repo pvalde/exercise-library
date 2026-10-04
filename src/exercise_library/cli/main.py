@@ -15,6 +15,7 @@ from exercise_library.repository import ExerciseRepository, MediaRepository
 from .add_command import add_exercise, add_exercise_in_env_editor
 from .browse_command import browse_exercises
 from .edit_command import edit_exercise, edit_exercise_env_editor
+from .media_command import add_media, list_media
 from .parser import Parser
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,12 @@ def main() -> int:
                 depth=args.depth,
                 count=args.count,
             )
+
+        elif args.command == "media":
+            if args.media_command == "add":
+                add_media(application, args.path)
+            elif args.media_command == "list":
+                list_media(application)
 
         logger.info("%s completed successfully.", APP_NAME)
         return 0
