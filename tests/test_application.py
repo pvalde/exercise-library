@@ -1,23 +1,28 @@
+from pathlib import Path
 from uuid import UUID, uuid7
 
 import pytest
 
 from exercise_library.application import (
+    DuplicateMediaError,
     ExerciseApplication,
     IdentifierPrefix,
     InvalidDepthError,
     InvalidExerciseError,
+    InvalidMediaError,
 )
 from exercise_library.database import initialize
-from exercise_library.models import Exercise
-from exercise_library.repository import ExerciseRepository
+from exercise_library.models import Exercise, Media
+from exercise_library.paths import media_dir_path
+from exercise_library.repository import ExerciseRepository, MediaRepository
 
 
 @pytest.fixture
 def application() -> ExerciseApplication:
     connection = initialize()
     repository = ExerciseRepository(connection)
-    return ExerciseApplication(repository)
+    media_repository = MediaRepository(connection)
+    return ExerciseApplication(repository, media_repository)
 
 
 @pytest.mark.parametrize(
@@ -594,3 +599,128 @@ def test_list_identifier_prefixes_raises_if_invalid_depth(
 ) -> None:
     with pytest.raises(InvalidDepthError, match="Depth must be a positive integer."):
         application.list_identifier_prefixes(depth=depth)
+
+
+# add_media --------------------------------------------------------------------
+
+
+def _write_image(tmp_path: Path, name: str = "diagram.png") -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    path = tmp_path / name
+    path.write_bytes(b"image bytes")
+    return path
+
+
+def test_add_media_stores_file_and_returns_name(
+    application: ExerciseApplication,
+    tmp_path: Path,
+) -> None:
+    source = _write_image(tmp_path)
+
+    name = application.add_media(source)
+
+    assert name == "diagram.png"
+    assert (media_dir_path() / "diagram.png").read_bytes() == b"image bytes"
+
+
+def test_add_media_persists_metadata(
+    application: ExerciseApplication,
+    tmp_path: Path,
+) -> None:
+    source = _write_image(tmp_path)
+
+    application.add_media(source)
+
+    media = application.media_repository.get("diagram.png")
+
+    assert media is not None
+    assert media.media_type == "image/png"
+    assert media.size_bytes == len(b"image bytes")
+
+
+def test_add_media_is_idempotent_for_same_content(
+    application: ExerciseApplication,
+    tmp_path: Path,
+) -> None:
+    first = _write_image(tmp_path / "first")
+    second = _write_image(tmp_path / "second")
+
+    assert application.add_media(first) == "diagram.png"
+    assert application.add_media(second) == "diagram.png"
+
+    assert len(application.list_media()) == 1
+
+
+def test_add_media_raises_if_name_exists_with_different_content(
+    application: ExerciseApplication,
+    tmp_path: Path,
+) -> None:
+    first = _write_image(tmp_path / "first")
+
+    other_dir = tmp_path / "other"
+    other_dir.mkdir()
+    second = other_dir / "diagram.png"
+    second.write_bytes(b"different bytes")
+
+    application.add_media(first)
+
+    with pytest.raises(DuplicateMediaError, match="already stored as 'diagram.png'"):
+        application.add_media(second)
+
+
+def test_add_media_raises_if_name_is_invalid(
+    application: ExerciseApplication,
+    tmp_path: Path,
+) -> None:
+    source = _write_image(tmp_path, "invalid name.png")
+
+    with pytest.raises(InvalidMediaError, match="invalid media file name"):
+        application.add_media(source)
+
+
+def test_add_media_raises_if_type_is_unsupported(
+    application: ExerciseApplication,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "document.pdf"
+    source.write_bytes(b"%PDF")
+
+    with pytest.raises(InvalidMediaError, match="not a supported media type"):
+        application.add_media(source)
+
+
+def test_add_media_raises_if_file_does_not_exist(
+    application: ExerciseApplication,
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(InvalidMediaError, match="Media file does not exist"):
+        application.add_media(tmp_path / "missing.png")
+
+
+def test_media_exists(application: ExerciseApplication, tmp_path: Path) -> None:
+    source = _write_image(tmp_path)
+
+    application.add_media(source)
+
+    assert application.media_exists("diagram.png")
+    assert not application.media_exists("missing.png")
+
+
+def test_list_media_returns_stored_media(
+    application: ExerciseApplication,
+    tmp_path: Path,
+) -> None:
+    source = _write_image(tmp_path)
+
+    application.add_media(source)
+
+    media = application.list_media()
+
+    assert media == [
+        Media(
+            name="diagram.png",
+            media_type="image/png",
+            sha256=media[0].sha256,
+            size_bytes=len(b"image bytes"),
+        )
+    ]

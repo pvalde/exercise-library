@@ -1,14 +1,25 @@
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
 
 from exercise_library.backup import BackupError, SQLiteBackupError, create_backup
-from exercise_library.models import Exercise
+from exercise_library.media import (
+    hash_file,
+    is_valid_media_name,
+    media_type_for_name,
+)
+from exercise_library.models import Exercise, Media
+from exercise_library.paths import media_dir_path
 from exercise_library.repository import (
     DuplicateIdentifierError,
     ExerciseRepository,
     InvalidExerciseValues,
+    MediaRepository,
+)
+from exercise_library.repository import (
+    DuplicateMediaError as RepositoryDuplicateMediaError,
 )
 
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9_-]+(?:::[A-Za-z0-9_-]+)*$")
@@ -26,6 +37,14 @@ class InvalidDepthError(ExerciseApplicationError):
     pass
 
 
+class InvalidMediaError(ExerciseApplicationError):
+    pass
+
+
+class DuplicateMediaError(ExerciseApplicationError):
+    pass
+
+
 INVALID_IDENTIFIER_MSG = (
     "Identifier can only contain letters, numbers, "
     + "dash, underscore, and '::' separators."
@@ -39,6 +58,25 @@ def invalid_identifier_msg(identifier: str) -> str:
     )
 
 
+def invalid_media_name_msg(name: str) -> str:
+    return (
+        f"'{name}' is an invalid media file name.\nIt can only contain "
+        + "letters, numbers, dot, dash and underscore, and must start "
+        + "with a letter or number."
+    )
+
+
+def unsupported_media_type_msg(name: str) -> str:
+    return f"'{name}' is not a supported media type."
+
+
+def duplicate_media_name_msg(name: str) -> str:
+    return (
+        f"A different media file is already stored as '{name}'.\n"
+        + "Rename the file and try again."
+    )
+
+
 @dataclass
 class IdentifierPrefix:
     prefix: str
@@ -48,6 +86,7 @@ class IdentifierPrefix:
 @dataclass
 class ExerciseApplication:
     repository: ExerciseRepository
+    media_repository: MediaRepository
 
     def _is_valid_identifier(self, identifier: str) -> bool:
         return bool(_IDENTIFIER_PATTERN.fullmatch(identifier))
@@ -188,3 +227,55 @@ class ExerciseApplication:
             )
 
         return id_prefixes
+
+    def add_media(self, source: Path) -> str:
+        name = source.name
+
+        if not is_valid_media_name(name):
+            raise InvalidMediaError(invalid_media_name_msg(name))
+
+        media_type = media_type_for_name(name)
+        if media_type is None:
+            raise InvalidMediaError(unsupported_media_type_msg(name))
+
+        if not source.is_file():
+            raise InvalidMediaError(f"Media file does not exist: {source}")
+
+        digest = hash_file(source)
+
+        existing = self.media_repository.get(name)
+        if existing is not None:
+            if existing.sha256 == digest:
+                return name
+            raise DuplicateMediaError(duplicate_media_name_msg(name))
+
+        destination = media_dir_path() / name
+        same_file = source.resolve() == destination.resolve()
+
+        if not same_file:
+            try:
+                shutil.copy2(source, destination)
+            except OSError as exc:
+                raise InvalidMediaError(f"Could not store media file: {name}") from exc
+
+        try:
+            self.media_repository.add(
+                Media(
+                    name=name,
+                    media_type=media_type,
+                    sha256=digest,
+                    size_bytes=source.stat().st_size,
+                )
+            )
+        except RepositoryDuplicateMediaError as exc:
+            if not same_file:
+                destination.unlink(missing_ok=True)
+            raise DuplicateMediaError(duplicate_media_name_msg(name)) from exc
+
+        return name
+
+    def media_exists(self, name: str) -> bool:
+        return self.media_repository.exists(name)
+
+    def list_media(self) -> list[Media]:
+        return self.media_repository.list_all()

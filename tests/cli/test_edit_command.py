@@ -12,7 +12,7 @@ from exercise_library.cli.edit_command import (
 )
 from exercise_library.database import initialize
 from exercise_library.models import Exercise
-from exercise_library.repository import ExerciseRepository
+from exercise_library.repository import ExerciseRepository, MediaRepository
 
 # ------------------------------------------------------------------------------
 # edit_exercises
@@ -321,8 +321,10 @@ def test_edit_ex_env_updates_provided_fields() -> None:
 
 def test_edit_exercise_in_env_editor_raises_if_identifier_already_exists() -> None:
 
+    connection = initialize()
     application = ExerciseApplication(
-        ExerciseRepository(initialize()),
+        ExerciseRepository(connection),
+        MediaRepository(connection),
     )
     exercise_uuid = application.add_exercise(
         prompt="prompt1",
@@ -358,8 +360,10 @@ def test_edit_exercise_in_env_editor_raises_if_identifier_already_exists() -> No
 
 def test_edit_exercise_in_env_editor_raises_if_identifier_is_invalid() -> None:
 
+    connection = initialize()
     application = ExerciseApplication(
-        ExerciseRepository(initialize()),
+        ExerciseRepository(connection),
+        MediaRepository(connection),
     )
     exercise_uuid = application.add_exercise(
         prompt="prompt1",
@@ -387,8 +391,10 @@ def test_edit_exercise_in_env_editor_raises_if_identifier_is_invalid() -> None:
 
 
 def test_edit_exercise_in_env_editor_do_not_raise_if_same_identifier_provided() -> None:
+    connection = initialize()
     application = ExerciseApplication(
-        ExerciseRepository(initialize()),
+        ExerciseRepository(connection),
+        MediaRepository(connection),
     )
     exercise_uuid = application.add_exercise(
         prompt="prompt1",

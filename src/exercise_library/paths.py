@@ -2,11 +2,17 @@ from pathlib import Path
 
 import platformdirs
 
-from exercise_library.config import APP_NAME
+from exercise_library.config import APP_NAME, MEDIA_DIR_NAME
 
 
 def app_data_dir_path() -> Path:
     path = platformdirs.user_data_path(APP_NAME)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def media_dir_path() -> Path:
+    path = app_data_dir_path() / MEDIA_DIR_NAME
     path.mkdir(parents=True, exist_ok=True)
     return path
 
