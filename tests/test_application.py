@@ -736,7 +736,7 @@ def test_add_exercise_accepts_existing_media_reference(
     application.add_media(_write_image(tmp_path))
 
     exercise_uuid = application.add_exercise(
-        prompt="![diagram](attachment:diagram.png)",
+        prompt="![diagram](diagram.png)",
         answer="See above.",
     )
 
@@ -751,7 +751,7 @@ def test_add_exercise_rejects_missing_media_reference(
         match="Referenced media not found: diagram.png.",
     ):
         application.add_exercise(
-            prompt="![diagram](attachment:diagram.png)",
+            prompt="![diagram](diagram.png)",
             answer="See above.",
         )
 
@@ -764,8 +764,8 @@ def test_add_exercise_reports_all_missing_media_sorted(
         match="Referenced media not found: first.png, second.jpg.",
     ):
         application.add_exercise(
-            prompt="![a](attachment:second.jpg)",
-            answer="![b](attachment:first.png)",
+            prompt="![a](second.jpg)",
+            answer="![b](first.png)",
         )
 
 
@@ -789,7 +789,7 @@ def test_update_exercise_accepts_existing_media_reference(
 
     updated = Exercise(
         uuid=exercise_uuid,
-        prompt="![diagram](attachment:diagram.png)",
+        prompt="![diagram](diagram.png)",
         answer="answer",
     )
 
@@ -803,7 +803,7 @@ def test_update_exercise_rejects_missing_media_reference(
 
     updated = Exercise(
         uuid=exercise_uuid,
-        prompt="![diagram](attachment:diagram.png)",
+        prompt="![diagram](diagram.png)",
         answer="answer",
     )
 
@@ -812,3 +812,42 @@ def test_update_exercise_rejects_missing_media_reference(
         match="Referenced media not found: diagram.png.",
     ):
         application.update_exercise(updated)
+
+
+def test_add_exercise_rejects_misspelled_media_scheme(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(
+        InvalidMediaError,
+        match="Invalid media references: attatchment:missing.png.",
+    ):
+        application.add_exercise(
+            prompt="![an image](attatchment:missing.png)",
+            answer="See above.",
+        )
+
+
+def test_add_exercise_rejects_invalid_media_filename(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(
+        InvalidMediaError,
+        match="Invalid media references: .hidden.png.",
+    ):
+        application.add_exercise(
+            prompt="![an image](.hidden.png)",
+            answer="See above.",
+        )
+
+
+def test_add_exercise_rejects_external_image_url(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(
+        InvalidMediaError,
+        match="Invalid media references: https://example.com/diagram.png.",
+    ):
+        application.add_exercise(
+            prompt="![remote](https://example.com/diagram.png)",
+            answer="See above.",
+        )

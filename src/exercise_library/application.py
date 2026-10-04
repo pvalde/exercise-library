@@ -7,6 +7,7 @@ from uuid import UUID
 from exercise_library.backup import BackupError, SQLiteBackupError, create_backup
 from exercise_library.media import (
     hash_file,
+    invalid_media_references,
     is_valid_media_name,
     media_type_for_name,
     referenced_media_names,
@@ -82,6 +83,15 @@ def missing_media_msg(names: list[str]) -> str:
     return "Referenced media not found: " + ", ".join(names) + "."
 
 
+def invalid_media_reference_msg(destinations: list[str]) -> str:
+    return (
+        "Invalid media references: "
+        + ", ".join(destinations)
+        + ".\nOnly stored media can be referenced, by file name, "
+        + "e.g. 'diagram.png'."
+    )
+
+
 @dataclass
 class IdentifierPrefix:
     prefix: str
@@ -97,12 +107,18 @@ class ExerciseApplication:
         return bool(_IDENTIFIER_PATTERN.fullmatch(identifier))
 
     def _check_media_references(self, *texts: str) -> None:
+        invalid: set[str] = set()
         missing: set[str] = set()
 
         for text in texts:
+            invalid.update(invalid_media_references(text))
+
             for name in referenced_media_names(text):
                 if not self.media_repository.exists(name):
                     missing.add(name)
+
+        if invalid:
+            raise InvalidMediaError(invalid_media_reference_msg(sorted(invalid)))
 
         if missing:
             raise InvalidMediaError(missing_media_msg(sorted(missing)))

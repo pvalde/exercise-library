@@ -28,7 +28,7 @@ def test_show_exercise_renders_terminal_placeholder(
     source.write_bytes(b"image")
     application.add_media(source)
     application.add_exercise(
-        prompt="![diagram](attachment:diagram.png)",
+        prompt="![diagram](diagram.png)",
         answer="See above.",
         identifier="exercise1",
     )
@@ -43,7 +43,7 @@ def test_show_exercise_renders_terminal_placeholder(
     output = capsys.readouterr().out
 
     assert "[image: diagram.png]" in output
-    assert "attachment:" not in output
+    assert "![diagram]" not in output
 
 
 def test_show_exercise_leaves_plain_text_untouched(
@@ -78,7 +78,7 @@ def test_show_exercise_renders_browser_image(
     source.write_bytes(b"image")
     application.add_media(source)
     application.add_exercise(
-        prompt="![diagram](attachment:diagram.png)",
+        prompt="![diagram](diagram.png)",
         answer="See above.",
         identifier="exercise1",
     )
@@ -101,4 +101,36 @@ def test_show_exercise_renders_browser_image(
     html = Path(opened["uri"].removeprefix("file://")).read_text(encoding="utf-8")
 
     assert (media_dir_path() / "diagram.png").as_uri() in html
-    assert "attachment:" not in html
+    assert "![diagram](diagram.png)" not in html
+
+
+def test_show_exercise_escapes_raw_html(
+    application: ExerciseApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    application.add_exercise(
+        prompt="This is <b>bold</b>",
+        answer='<img src="https://example.com/evil.png">',
+        identifier="exercise1",
+    )
+
+    opened: dict[str, str] = {}
+    monkeypatch.setattr(
+        webbrowser,
+        "open",
+        lambda uri: opened.setdefault("uri", uri),
+    )
+
+    show_exercise(
+        application,
+        identifier="exercise1",
+        show_prompt=True,
+        show_answer=True,
+        show_in_webbrowser=True,
+    )
+
+    html = Path(opened["uri"].removeprefix("file://")).read_text(encoding="utf-8")
+
+    assert "<b>bold</b>" not in html
+    assert "&lt;b&gt;bold&lt;/b&gt;" in html
+    assert "&lt;img" in html

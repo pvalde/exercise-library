@@ -77,7 +77,7 @@ def _open_webbrowser(
     md = _MarkdownItWithFileLinks(
         "commonmark",
         {
-            "html": True,
+            "html": False,
             "breaks": True,
         },
     )
