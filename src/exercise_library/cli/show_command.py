@@ -12,11 +12,20 @@ from mdit_py_plugins.texmath import texmath_plugin
 
 from exercise_library.application import ExerciseApplication
 from exercise_library.cli.exceptions import CLIError
+from exercise_library.media import render_terminal_text, resolve_file_uris
 from exercise_library.models import Exercise
+from exercise_library.paths import media_dir_path
 
 
 class ShowError(CLIError):
     pass
+
+
+class _MarkdownItWithFileLinks(MarkdownIt):
+    def validateLink(self, url: str) -> bool:
+        if url.startswith("file:"):
+            return True
+        return super().validateLink(url)
 
 
 def show_exercise(
@@ -52,10 +61,10 @@ def show_exercise(
             output += f"Exercise:\n{exercise.uuid}\n\n"
 
         if show_prompt:
-            output += f"Prompt:\n{exercise.prompt}\n\n"
+            output += f"Prompt:\n{render_terminal_text(exercise.prompt)}\n\n"
 
         if show_answer:
-            output += f"Answer:\n{exercise.answer}\n"
+            output += f"Answer:\n{render_terminal_text(exercise.answer)}\n"
 
         print(output)
 
@@ -65,7 +74,7 @@ def _open_webbrowser(
     show_prompt: bool = False,
     show_answer: bool = False,
 ) -> None:
-    md = MarkdownIt(
+    md = _MarkdownItWithFileLinks(
         "commonmark",
         {
             "html": True,
@@ -96,8 +105,8 @@ def _open_webbrowser(
     md.add_render_rule("math_inline", render_math_inline)
     md.add_render_rule("math_block", render_math_block)
 
-    prompt_html = md.render(exercise.prompt)
-    answer_html = md.render(exercise.answer)
+    prompt_html = md.render(resolve_file_uris(exercise.prompt, media_dir_path()))
+    answer_html = md.render(resolve_file_uris(exercise.answer, media_dir_path()))
 
     assert exercise.uuid is not None
 

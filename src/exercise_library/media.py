@@ -13,6 +13,10 @@ _MEDIA_TYPES_BY_EXTENSION: dict[str, str] = {
     ".svg": "image/svg+xml",
 }
 
+_IMAGE_REFERENCE_PATTERN = re.compile(
+    r"!\[(?P<alt>[^\]]*)\]\(attachment:(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)\)"
+)
+
 
 def is_valid_media_name(name: str) -> bool:
     """Return whether ``name`` is a safe, referenceable media file name."""
@@ -28,3 +32,22 @@ def hash_file(path: Path) -> str:
     """Return the hex-encoded SHA-256 digest of the file at ``path``."""
     with path.open("rb") as file:
         return hashlib.file_digest(file, "sha256").hexdigest()
+
+
+def render_terminal_text(text: str) -> str:
+    """Replace media references with a plain-text placeholder."""
+    return _IMAGE_REFERENCE_PATTERN.sub(
+        lambda match: f"[image: {match.group('name')}]",
+        text,
+    )
+
+
+def resolve_file_uris(text: str, media_dir: Path) -> str:
+    """Rewrite media references to ``file://`` URIs under ``media_dir``."""
+    return _IMAGE_REFERENCE_PATTERN.sub(
+        lambda match: (
+            f"![{match.group('alt')}]"
+            + f"({(media_dir / match.group('name')).as_uri()})"
+        ),
+        text,
+    )

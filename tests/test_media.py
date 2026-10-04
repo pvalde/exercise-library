@@ -6,6 +6,8 @@ from exercise_library.media import (
     hash_file,
     is_valid_media_name,
     media_type_for_name,
+    render_terminal_text,
+    resolve_file_uris,
 )
 
 
@@ -101,3 +103,64 @@ def test_hash_file_differs_for_different_content(tmp_path: Path) -> None:
     second.write_bytes(b"content b")
 
     assert hash_file(first) != hash_file(second)
+
+
+# render_terminal_text ---------------------------------------------------------
+
+
+def test_render_terminal_text_replaces_reference_with_placeholder() -> None:
+    text = "Look at this: ![diagram](attachment:diagram.png)"
+
+    assert render_terminal_text(text) == "Look at this: [image: diagram.png]"
+
+
+def test_render_terminal_text_replaces_multiple_references() -> None:
+    text = "![a](attachment:first.png) and ![b](attachment:second.jpg)"
+
+    assert render_terminal_text(text) == "[image: first.png] and [image: second.jpg]"
+
+
+def test_render_terminal_text_leaves_plain_text_untouched() -> None:
+    text = "No images here."
+
+    assert render_terminal_text(text) == text
+
+
+def test_render_terminal_text_ignores_malformed_reference() -> None:
+    text = "![bad](attachment:has space.png)"
+
+    assert render_terminal_text(text) == text
+
+
+def test_render_terminal_text_ignores_plain_link() -> None:
+    text = "[link](attachment:diagram.png)"
+
+    assert render_terminal_text(text) == text
+
+
+# resolve_file_uris ------------------------------------------------------------
+
+
+def test_resolve_file_uris_rewrites_to_file_uri(tmp_path: Path) -> None:
+    text = "![diagram](attachment:diagram.png)"
+
+    result = resolve_file_uris(text, tmp_path)
+
+    assert result == f"![diagram]({(tmp_path / 'diagram.png').as_uri()})"
+
+
+def test_resolve_file_uris_rewrites_multiple_references(tmp_path: Path) -> None:
+    text = "![a](attachment:first.png)![b](attachment:second.jpg)"
+
+    result = resolve_file_uris(text, tmp_path)
+
+    assert result == (
+        f"![a]({(tmp_path / 'first.png').as_uri()})"
+        + f"![b]({(tmp_path / 'second.jpg').as_uri()})"
+    )
+
+
+def test_resolve_file_uris_leaves_plain_text_untouched(tmp_path: Path) -> None:
+    text = "No images here."
+
+    assert resolve_file_uris(text, tmp_path) == text
