@@ -28,6 +28,11 @@ def media_type_for_name(name: str) -> str | None:
     return _MEDIA_TYPES_BY_EXTENSION.get(Path(name).suffix.lower())
 
 
+def referenced_media_names(text: str) -> set[str]:
+    """Return the media names referenced by markdown images in ``text``."""
+    return {match.group("name") for match in _IMAGE_REFERENCE_PATTERN.finditer(text)}
+
+
 def hash_file(path: Path) -> str:
     """Return the hex-encoded SHA-256 digest of the file at ``path``."""
     with path.open("rb") as file:

@@ -21,8 +21,12 @@ def test_show_exercise_raises_if_not_uuid_and_identifier() -> None:
 
 def test_show_exercise_renders_terminal_placeholder(
     application: ExerciseApplication,
+    tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    source = tmp_path / "diagram.png"
+    source.write_bytes(b"image")
+    application.add_media(source)
     application.add_exercise(
         prompt="![diagram](attachment:diagram.png)",
         answer="See above.",
@@ -67,8 +71,12 @@ def test_show_exercise_leaves_plain_text_untouched(
 
 def test_show_exercise_renders_browser_image(
     application: ExerciseApplication,
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    source = tmp_path / "diagram.png"
+    source.write_bytes(b"image")
+    application.add_media(source)
     application.add_exercise(
         prompt="![diagram](attachment:diagram.png)",
         answer="See above.",

@@ -9,6 +9,7 @@ from exercise_library.media import (
     hash_file,
     is_valid_media_name,
     media_type_for_name,
+    referenced_media_names,
 )
 from exercise_library.models import Exercise, Media
 from exercise_library.paths import media_dir_path
@@ -77,6 +78,10 @@ def duplicate_media_name_msg(name: str) -> str:
     )
 
 
+def missing_media_msg(names: list[str]) -> str:
+    return "Referenced media not found: " + ", ".join(names) + "."
+
+
 @dataclass
 class IdentifierPrefix:
     prefix: str
@@ -90,6 +95,17 @@ class ExerciseApplication:
 
     def _is_valid_identifier(self, identifier: str) -> bool:
         return bool(_IDENTIFIER_PATTERN.fullmatch(identifier))
+
+    def _check_media_references(self, *texts: str) -> None:
+        missing: set[str] = set()
+
+        for text in texts:
+            for name in referenced_media_names(text):
+                if not self.media_repository.exists(name):
+                    missing.add(name)
+
+        if missing:
+            raise InvalidMediaError(missing_media_msg(sorted(missing)))
 
     def add_exercise(
         self,
@@ -108,6 +124,8 @@ class ExerciseApplication:
 
         if identifier is not None and not self._is_valid_identifier(identifier):
             raise InvalidExerciseError(invalid_identifier_msg(identifier))
+
+        self._check_media_references(prompt, answer)
 
         exercise = Exercise(
             prompt=prompt,
@@ -148,6 +166,8 @@ class ExerciseApplication:
     def update_exercise(self, exercise: Exercise) -> UUID:
         if exercise.identifier and not self._is_valid_identifier(exercise.identifier):
             raise InvalidExerciseError(invalid_identifier_msg(exercise.identifier))
+
+        self._check_media_references(exercise.prompt, exercise.answer)
 
         try:
             exercise_uuid = self.repository.update(exercise)

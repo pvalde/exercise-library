@@ -6,6 +6,7 @@ from exercise_library.media import (
     hash_file,
     is_valid_media_name,
     media_type_for_name,
+    referenced_media_names,
     render_terminal_text,
     resolve_file_uris,
 )
@@ -164,3 +165,32 @@ def test_resolve_file_uris_leaves_plain_text_untouched(tmp_path: Path) -> None:
     text = "No images here."
 
     assert resolve_file_uris(text, tmp_path) == text
+
+
+# referenced_media_names -------------------------------------------------------
+
+
+def test_referenced_media_names_returns_single_name() -> None:
+    assert referenced_media_names("![diagram](attachment:diagram.png)") == {
+        "diagram.png"
+    }
+
+
+def test_referenced_media_names_returns_multiple_names() -> None:
+    text = "![a](attachment:first.png) and ![b](attachment:second.jpg)"
+
+    assert referenced_media_names(text) == {"first.png", "second.jpg"}
+
+
+def test_referenced_media_names_deduplicates_names() -> None:
+    text = "![a](attachment:diagram.png) ![b](attachment:diagram.png)"
+
+    assert referenced_media_names(text) == {"diagram.png"}
+
+
+def test_referenced_media_names_returns_empty_for_plain_text() -> None:
+    assert referenced_media_names("No images here.") == set()
+
+
+def test_referenced_media_names_ignores_malformed_reference() -> None:
+    assert referenced_media_names("![bad](attachment:has space.png)") == set()

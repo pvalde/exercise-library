@@ -724,3 +724,91 @@ def test_list_media_returns_stored_media(
             size_bytes=len(b"image bytes"),
         )
     ]
+
+
+# media reference validation ---------------------------------------------------
+
+
+def test_add_exercise_accepts_existing_media_reference(
+    application: ExerciseApplication,
+    tmp_path: Path,
+) -> None:
+    application.add_media(_write_image(tmp_path))
+
+    exercise_uuid = application.add_exercise(
+        prompt="![diagram](attachment:diagram.png)",
+        answer="See above.",
+    )
+
+    assert exercise_uuid is not None
+
+
+def test_add_exercise_rejects_missing_media_reference(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(
+        InvalidMediaError,
+        match="Referenced media not found: diagram.png.",
+    ):
+        application.add_exercise(
+            prompt="![diagram](attachment:diagram.png)",
+            answer="See above.",
+        )
+
+
+def test_add_exercise_reports_all_missing_media_sorted(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(
+        InvalidMediaError,
+        match="Referenced media not found: first.png, second.jpg.",
+    ):
+        application.add_exercise(
+            prompt="![a](attachment:second.jpg)",
+            answer="![b](attachment:first.png)",
+        )
+
+
+def test_add_exercise_ignores_plain_text(
+    application: ExerciseApplication,
+) -> None:
+    exercise_uuid = application.add_exercise(
+        prompt="What is 2 + 2?",
+        answer="4",
+    )
+
+    assert exercise_uuid is not None
+
+
+def test_update_exercise_accepts_existing_media_reference(
+    application: ExerciseApplication,
+    tmp_path: Path,
+) -> None:
+    application.add_media(_write_image(tmp_path))
+    exercise_uuid = application.add_exercise(prompt="prompt", answer="answer")
+
+    updated = Exercise(
+        uuid=exercise_uuid,
+        prompt="![diagram](attachment:diagram.png)",
+        answer="answer",
+    )
+
+    assert application.update_exercise(updated) == exercise_uuid
+
+
+def test_update_exercise_rejects_missing_media_reference(
+    application: ExerciseApplication,
+) -> None:
+    exercise_uuid = application.add_exercise(prompt="prompt", answer="answer")
+
+    updated = Exercise(
+        uuid=exercise_uuid,
+        prompt="![diagram](attachment:diagram.png)",
+        answer="answer",
+    )
+
+    with pytest.raises(
+        InvalidMediaError,
+        match="Referenced media not found: diagram.png.",
+    ):
+        application.update_exercise(updated)
