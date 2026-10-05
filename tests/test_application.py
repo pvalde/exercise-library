@@ -12,23 +12,8 @@ from exercise_library.application import (
     InvalidMediaError,
     InvalidReviewRatingError,
 )
-from exercise_library.database import initialize
 from exercise_library.models import Exercise, Media
 from exercise_library.paths import media_dir_path
-from exercise_library.repository import (
-    ExerciseRepository,
-    MediaRepository,
-    ReviewRepository,
-)
-
-
-@pytest.fixture
-def application() -> ExerciseApplication:
-    connection = initialize()
-    repository = ExerciseRepository(connection)
-    media_repository = MediaRepository(connection)
-    review_repository = ReviewRepository(connection)
-    return ExerciseApplication(repository, media_repository, review_repository)
 
 
 @pytest.mark.parametrize(

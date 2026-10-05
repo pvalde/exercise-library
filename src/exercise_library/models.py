@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 from uuid import UUID
 
 
@@ -14,6 +14,12 @@ class ReviewRating(IntEnum):
     def is_failure(self) -> bool:
         """Whether this rating counts as a failure in review statistics."""
         return self in (ReviewRating.WRONG, ReviewRating.HARD)
+
+
+class ReviewStatus(StrEnum):
+    ALL = "all"
+    NEW = "new"
+    REVIEWED = "reviewed"
 
 
 @dataclass(frozen=True)

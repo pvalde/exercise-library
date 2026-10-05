@@ -110,6 +110,7 @@ class ReviewExerciseStats:
     total_reviews: int
     failures: int
     last_reviewed_at: datetime | None
+    recent_failures: int = 0
 
 
 @dataclass
@@ -373,4 +374,5 @@ class ExerciseApplication:
             total_reviews=(archived.total_reviews if archived else 0) + len(window),
             failures=(archived.failures if archived else 0) + window_failures,
             last_reviewed_at=last_reviewed_at,
+            recent_failures=window_failures,
         )
