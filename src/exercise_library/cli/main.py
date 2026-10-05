@@ -10,7 +10,11 @@ from exercise_library.config import APP_NAME
 from exercise_library.database import initialize
 from exercise_library.locking import ApplicationLockTimeout
 from exercise_library.paths import log_file_path
-from exercise_library.repository import ExerciseRepository, MediaRepository
+from exercise_library.repository import (
+    ExerciseRepository,
+    MediaRepository,
+    ReviewRepository,
+)
 
 from .add_command import add_exercise, add_exercise_in_env_editor
 from .browse_command import browse_exercises
@@ -57,7 +61,10 @@ def main() -> int:
         connection = initialize()
         repository = ExerciseRepository(connection)
         media_repository = MediaRepository(connection)
-        application = ExerciseApplication(repository, media_repository)
+        review_repository = ReviewRepository(connection)
+        application = ExerciseApplication(
+            repository, media_repository, review_repository
+        )
 
         if args.command == "add":
             if not args.interactive:

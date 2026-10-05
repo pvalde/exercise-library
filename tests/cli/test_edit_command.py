@@ -12,7 +12,11 @@ from exercise_library.cli.edit_command import (
 )
 from exercise_library.database import initialize
 from exercise_library.models import Exercise
-from exercise_library.repository import ExerciseRepository, MediaRepository
+from exercise_library.repository import (
+    ExerciseRepository,
+    MediaRepository,
+    ReviewRepository,
+)
 
 # ------------------------------------------------------------------------------
 # edit_exercises
@@ -325,6 +329,7 @@ def test_edit_exercise_in_env_editor_raises_if_identifier_already_exists() -> No
     application = ExerciseApplication(
         ExerciseRepository(connection),
         MediaRepository(connection),
+        ReviewRepository(connection),
     )
     exercise_uuid = application.add_exercise(
         prompt="prompt1",
@@ -364,6 +369,7 @@ def test_edit_exercise_in_env_editor_raises_if_identifier_is_invalid() -> None:
     application = ExerciseApplication(
         ExerciseRepository(connection),
         MediaRepository(connection),
+        ReviewRepository(connection),
     )
     exercise_uuid = application.add_exercise(
         prompt="prompt1",
@@ -395,6 +401,7 @@ def test_edit_exercise_in_env_editor_do_not_raise_if_same_identifier_provided() 
     application = ExerciseApplication(
         ExerciseRepository(connection),
         MediaRepository(connection),
+        ReviewRepository(connection),
     )
     exercise_uuid = application.add_exercise(
         prompt="prompt1",

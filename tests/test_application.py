@@ -10,11 +10,16 @@ from exercise_library.application import (
     InvalidDepthError,
     InvalidExerciseError,
     InvalidMediaError,
+    InvalidReviewRatingError,
 )
 from exercise_library.database import initialize
 from exercise_library.models import Exercise, Media
 from exercise_library.paths import media_dir_path
-from exercise_library.repository import ExerciseRepository, MediaRepository
+from exercise_library.repository import (
+    ExerciseRepository,
+    MediaRepository,
+    ReviewRepository,
+)
 
 
 @pytest.fixture
@@ -22,7 +27,8 @@ def application() -> ExerciseApplication:
     connection = initialize()
     repository = ExerciseRepository(connection)
     media_repository = MediaRepository(connection)
-    return ExerciseApplication(repository, media_repository)
+    review_repository = ReviewRepository(connection)
+    return ExerciseApplication(repository, media_repository, review_repository)
 
 
 @pytest.mark.parametrize(
@@ -851,3 +857,79 @@ def test_add_exercise_rejects_external_image_url(
             prompt="![remote](https://example.com/diagram.png)",
             answer="See above.",
         )
+
+
+# reviews ----------------------------------------------------------------------
+
+
+def test_record_review_by_identifier(application: ExerciseApplication) -> None:
+    application.add_exercise(prompt="p", answer="a", identifier="math::limits")
+
+    review_uuid = application.record_review("math::limits", "good")
+
+    assert isinstance(review_uuid, UUID)
+    stats = application.review_stats("math::limits")
+    assert stats.total_reviews == 1
+    assert stats.failures == 0
+
+
+def test_record_review_by_uuid(application: ExerciseApplication) -> None:
+    exercise_uuid = application.add_exercise(
+        prompt="p", answer="a", identifier="math::integrals"
+    )
+
+    application.record_review(exercise_uuid, "wrong")
+
+    stats = application.review_stats(exercise_uuid)
+    assert stats.total_reviews == 1
+    assert stats.failures == 1
+
+
+def test_record_review_rejects_invalid_rating(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(prompt="p", answer="a", identifier="bio::cells")
+
+    with pytest.raises(InvalidReviewRatingError):
+        application.record_review("bio::cells", "meh")
+
+
+def test_record_review_rejects_unknown_identifier(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(InvalidExerciseError):
+        application.record_review("nope::nothing", "good")
+
+
+def test_record_review_rejects_unknown_uuid(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(InvalidExerciseError):
+        application.record_review(uuid7(), "good")
+
+
+def test_review_stats_counts_window_failures(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(prompt="p", answer="a", identifier="chem::bonds")
+
+    application.record_review("chem::bonds", "wrong")
+    application.record_review("chem::bonds", "hard")
+    application.record_review("chem::bonds", "good")
+
+    stats = application.review_stats("chem::bonds")
+    assert stats.total_reviews == 3
+    assert stats.failures == 2
+    assert stats.last_reviewed_at is not None
+
+
+def test_review_stats_for_unreviewed_exercise(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(prompt="p", answer="a", identifier="phys::waves")
+
+    stats = application.review_stats("phys::waves")
+
+    assert stats.total_reviews == 0
+    assert stats.failures == 0
+    assert stats.last_reviewed_at is None

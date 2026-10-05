@@ -1,6 +1,7 @@
 import re
 import shutil
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -12,13 +13,14 @@ from exercise_library.media import (
     media_type_for_name,
     referenced_media_names,
 )
-from exercise_library.models import Exercise, Media
+from exercise_library.models import Exercise, Media, ReviewRating
 from exercise_library.paths import media_dir_path
 from exercise_library.repository import (
     DuplicateIdentifierError,
     ExerciseRepository,
     InvalidExerciseValues,
     MediaRepository,
+    ReviewRepository,
 )
 from exercise_library.repository import (
     DuplicateMediaError as RepositoryDuplicateMediaError,
@@ -44,6 +46,10 @@ class InvalidMediaError(ExerciseApplicationError):
 
 
 class DuplicateMediaError(ExerciseApplicationError):
+    pass
+
+
+class InvalidReviewRatingError(ExerciseApplicationError):
     pass
 
 
@@ -98,10 +104,19 @@ class IdentifierPrefix:
     exercise_count: int
 
 
+@dataclass(frozen=True)
+class ReviewExerciseStats:
+    exercise_uuid: UUID
+    total_reviews: int
+    failures: int
+    last_reviewed_at: datetime | None
+
+
 @dataclass
 class ExerciseApplication:
     repository: ExerciseRepository
     media_repository: MediaRepository
+    review_repository: ReviewRepository
 
     def _is_valid_identifier(self, identifier: str) -> bool:
         return bool(_IDENTIFIER_PATTERN.fullmatch(identifier))
@@ -315,3 +330,47 @@ class ExerciseApplication:
 
     def list_media(self) -> list[Media]:
         return self.media_repository.list_all()
+
+    def _resolve_exercise(self, identifier_or_uuid: str | UUID) -> Exercise:
+        if isinstance(identifier_or_uuid, UUID):
+            return self.get_exercise_by_uuid(identifier_or_uuid)
+        return self.get_exercise_by_identifier(identifier_or_uuid)
+
+    @staticmethod
+    def _parse_rating(rating: ReviewRating | str) -> ReviewRating:
+        if isinstance(rating, ReviewRating):
+            return rating
+        try:
+            return ReviewRating[rating.strip().upper()]
+        except KeyError as exc:
+            valid = ", ".join(r.name.lower() for r in ReviewRating)
+            raise InvalidReviewRatingError(
+                f"Invalid rating: {rating!r}. Valid values: {valid}."
+            ) from exc
+
+    def record_review(
+        self,
+        identifier_or_uuid: str | UUID,
+        rating: ReviewRating | str,
+    ) -> UUID:
+        exercise = self._resolve_exercise(identifier_or_uuid)
+        parsed_rating = self._parse_rating(rating)
+        assert exercise.uuid is not None
+        return self.review_repository.add(exercise.uuid, parsed_rating)
+
+    def review_stats(self, identifier_or_uuid: str | UUID) -> ReviewExerciseStats:
+        exercise = self._resolve_exercise(identifier_or_uuid)
+        assert exercise.uuid is not None
+
+        archived = self.review_repository.get_archived_stats(exercise.uuid)
+        window = self.review_repository.list_by_exercise(exercise.uuid)
+
+        window_failures = sum(1 for review in window if review.rating.is_failure)
+        last_reviewed_at = max((r.reviewed_at for r in window), default=None)
+
+        return ReviewExerciseStats(
+            exercise_uuid=exercise.uuid,
+            total_reviews=(archived.total_reviews if archived else 0) + len(window),
+            failures=(archived.failures if archived else 0) + window_failures,
+            last_reviewed_at=last_reviewed_at,
+        )
