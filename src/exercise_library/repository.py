@@ -3,7 +3,15 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid7
 
 from exercise_library.locking import application_lock
-from exercise_library.models import Exercise, Media
+from exercise_library.models import (
+    ArchivedReviewStats,
+    Exercise,
+    Media,
+    Review,
+    ReviewRating,
+)
+
+RETAINED_REVIEWS_PER_EXERCISE = 25
 
 
 class RepositoryError(Exception):
@@ -30,33 +38,33 @@ def _now_unix_millis() -> int:
     return int(datetime.now(tz=UTC).timestamp() * 1000)
 
 
+def _to_db_datetime(value: datetime) -> int:
+    """
+    Convert a timezone-aware datetime to Unix time in milliseconds.
+
+    SQLite stores timestamps as INTEGER values representing the number of
+    milliseconds since the Unix epoch (1970-01-01 00:00:00 UTC).
+    """
+    if value.tzinfo is None:
+        raise ValueError("datetime must be timezone-aware")
+
+    return int(value.timestamp() * 1000)
+
+
+def _from_db_datetime(value: int) -> datetime:
+    """
+    Convert a Unix timestamp in milliseconds to a timezone-aware UTC
+    datetime.
+
+    The value is expected to represent the number of milliseconds since the
+    Unix epoch (1970-01-01 00:00:00 UTC).
+    """
+    return datetime.fromtimestamp(value / 1000, tz=UTC)
+
+
 class ExerciseRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
-
-    @staticmethod
-    def _to_db_datetime(value: datetime) -> int:
-        """
-        Convert a timezone-aware datetime to Unix time in milliseconds.
-
-        SQLite stores timestamps as INTEGER values representing the number of
-        milliseconds since the Unix epoch (1970-01-01 00:00:00 UTC).
-        """
-        if value.tzinfo is None:
-            raise ValueError("datetime must be timezone-aware")
-
-        return int(value.timestamp() * 1000)
-
-    @staticmethod
-    def _from_db_datetime(value: int) -> datetime:
-        """
-        Convert a Unix timestamp in milliseconds to a timezone-aware UTC
-        datetime.
-
-        The value is expected to represent the number of milliseconds since the
-        Unix epoch (1970-01-01 00:00:00 UTC).
-        """
-        return datetime.fromtimestamp(value / 1000, tz=UTC)
 
     def add(self, exercise: Exercise) -> UUID:
         with application_lock():
@@ -75,8 +83,8 @@ class ExerciseRepository:
                         exercise.identifier,
                         exercise.prompt,
                         exercise.answer,
-                        self._to_db_datetime(current_time),
-                        self._to_db_datetime(current_time),
+                        _to_db_datetime(current_time),
+                        _to_db_datetime(current_time),
                     ),
                 )
                 self._connection.commit()
@@ -118,7 +126,7 @@ class ExerciseRepository:
                         exercise.identifier,
                         exercise.prompt,
                         exercise.answer,
-                        self._to_db_datetime(datetime.now(tz=UTC)),
+                        _to_db_datetime(datetime.now(tz=UTC)),
                         str(exercise.uuid),
                     ),
                 )
@@ -325,3 +333,181 @@ class MediaRepository:
             )
             for row in cursor.fetchall()
         ]
+
+
+class ReviewRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    @staticmethod
+    def _row_to_review(row: sqlite3.Row) -> Review:
+        return Review(
+            uuid=UUID(row["uuid"]),
+            exercise_uuid=UUID(row["exercise_uuid"]),
+            reviewed_at=_from_db_datetime(row["reviewed_at"]),
+            rating=ReviewRating(row["rating"]),
+        )
+
+    def add(
+        self,
+        exercise_uuid: UUID,
+        rating: ReviewRating,
+        reviewed_at: datetime | None = None,
+    ) -> UUID:
+        if reviewed_at is None:
+            reviewed_at = datetime.now(tz=UTC)
+        elif reviewed_at.tzinfo is None:
+            raise ValueError("reviewed_at must be timezone-aware")
+
+        with application_lock():
+            review_uuid = uuid7()
+            self._connection.execute(
+                """
+                INSERT INTO reviews (uuid, exercise_uuid, reviewed_at, rating)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    str(review_uuid),
+                    str(exercise_uuid),
+                    _to_db_datetime(reviewed_at),
+                    int(rating),
+                ),
+            )
+            self._enforce_retention(exercise_uuid)
+            self._connection.commit()
+
+        return review_uuid
+
+    def _enforce_retention(self, exercise_uuid: UUID) -> None:
+        rows = self._connection.execute(
+            """
+            SELECT uuid, reviewed_at, rating
+            FROM reviews
+            WHERE exercise_uuid = ?
+            ORDER BY reviewed_at ASC, uuid ASC
+            """,
+            (str(exercise_uuid),),
+        ).fetchall()
+
+        overflow = len(rows) - RETAINED_REVIEWS_PER_EXERCISE
+        if overflow <= 0:
+            return
+
+        to_fold = rows[:overflow]
+        fold_failures = sum(
+            1 for row in to_fold if ReviewRating(row["rating"]).is_failure
+        )
+        fold_oldest = _from_db_datetime(to_fold[0]["reviewed_at"])
+
+        existing = self._connection.execute(
+            """
+            SELECT total_reviews, failures, first_reviewed_at
+            FROM archived_review_stats
+            WHERE exercise_uuid = ?
+            """,
+            (str(exercise_uuid),),
+        ).fetchone()
+
+        now_millis = _now_unix_millis()
+
+        if existing is None:
+            self._connection.execute(
+                """
+                INSERT INTO archived_review_stats
+                (exercise_uuid, total_reviews, failures, first_reviewed_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    str(exercise_uuid),
+                    len(to_fold),
+                    fold_failures,
+                    _to_db_datetime(fold_oldest),
+                    now_millis,
+                ),
+            )
+        else:
+            existing_first = existing["first_reviewed_at"]
+            first_reviewed_at = (
+                min(existing_first, _to_db_datetime(fold_oldest))
+                if existing_first is not None
+                else _to_db_datetime(fold_oldest)
+            )
+            self._connection.execute(
+                """
+                UPDATE archived_review_stats
+                SET total_reviews = total_reviews + ?,
+                    failures = failures + ?,
+                    first_reviewed_at = ?,
+                    updated_at = ?
+                WHERE exercise_uuid = ?
+                """,
+                (
+                    len(to_fold),
+                    fold_failures,
+                    first_reviewed_at,
+                    now_millis,
+                    str(exercise_uuid),
+                ),
+            )
+
+        placeholders = ",".join("?" for _ in to_fold)
+        self._connection.execute(
+            f"DELETE FROM reviews WHERE uuid IN ({placeholders})",
+            tuple(row["uuid"] for row in to_fold),
+        )
+
+    def list_by_exercise(self, exercise_uuid: UUID) -> list[Review]:
+        cursor = self._connection.execute(
+            """
+            SELECT uuid, exercise_uuid, reviewed_at, rating
+            FROM reviews
+            WHERE exercise_uuid = ?
+            ORDER BY reviewed_at, uuid
+            """,
+            (str(exercise_uuid),),
+        )
+        return [self._row_to_review(row) for row in cursor.fetchall()]
+
+    def get_archived_stats(self, exercise_uuid: UUID) -> ArchivedReviewStats | None:
+        row = self._connection.execute(
+            """
+            SELECT exercise_uuid, total_reviews, failures, first_reviewed_at, updated_at
+            FROM archived_review_stats
+            WHERE exercise_uuid = ?
+            """,
+            (str(exercise_uuid),),
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return ArchivedReviewStats(
+            exercise_uuid=UUID(row["exercise_uuid"]),
+            total_reviews=row["total_reviews"],
+            failures=row["failures"],
+            updated_at=_from_db_datetime(row["updated_at"]),
+            first_reviewed_at=(
+                _from_db_datetime(row["first_reviewed_at"])
+                if row["first_reviewed_at"] is not None
+                else None
+            ),
+        )
+
+    def latest_per_exercise(self) -> dict[UUID, Review]:
+        cursor = self._connection.execute(
+            """
+            SELECT r.uuid, r.exercise_uuid, r.reviewed_at, r.rating
+            FROM reviews r
+            JOIN (
+                SELECT exercise_uuid, MAX(reviewed_at) AS max_reviewed_at
+                FROM reviews
+                GROUP BY exercise_uuid
+            ) latest
+              ON r.exercise_uuid = latest.exercise_uuid
+             AND r.reviewed_at = latest.max_reviewed_at
+            """
+        )
+        return {
+            UUID(row["exercise_uuid"]): self._row_to_review(row)
+            for row in cursor.fetchall()
+        }

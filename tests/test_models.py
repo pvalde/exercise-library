@@ -5,7 +5,7 @@ from uuid import uuid7
 
 import pytest
 
-from exercise_library.models import Exercise, Review, ReviewRating, ReviewSummary
+from exercise_library.models import ArchivedReviewStats, Exercise, Review, ReviewRating
 
 
 def test_exercise() -> None:
@@ -27,6 +27,13 @@ def test_review_rating_maps_to_db_integers() -> None:
     assert int(ReviewRating.GOOD) == 2
     assert ReviewRating(2) is ReviewRating.GOOD
     assert ReviewRating(0) is ReviewRating.WRONG
+
+
+def test_review_rating_is_failure() -> None:
+    assert ReviewRating.WRONG.is_failure is True
+    assert ReviewRating.HARD.is_failure is True
+    assert ReviewRating.GOOD.is_failure is False
+    assert ReviewRating.EASY.is_failure is False
 
 
 def test_review() -> None:
@@ -71,7 +78,7 @@ def test_review_summary() -> None:
     exercise_uuid = uuid7()
     now = datetime.now(tz=UTC)
 
-    summary = ReviewSummary(
+    summary = ArchivedReviewStats(
         exercise_uuid=exercise_uuid,
         total_reviews=42,
         failures=7,
@@ -88,7 +95,7 @@ def test_review_summary() -> None:
 
 def test_review_summary_without_first_review() -> None:
 
-    summary = ReviewSummary(
+    summary = ArchivedReviewStats(
         exercise_uuid=uuid7(),
         total_reviews=0,
         failures=0,

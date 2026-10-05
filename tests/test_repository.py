@@ -1,18 +1,20 @@
 import sqlite3
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid7
 
 import pytest
 
 from exercise_library.database import initialize
-from exercise_library.models import Exercise, Media
+from exercise_library.models import Exercise, Media, ReviewRating
 from exercise_library.repository import (
     DuplicateIdentifierError,
     DuplicateMediaError,
     ExerciseRepository,
     InvalidExerciseValues,
     MediaRepository,
+    ReviewRepository,
 )
 
 # FIXTURES ---------------------------------------------------------------------
@@ -675,3 +677,167 @@ def test_list_all_media_returns_empty_list() -> None:
     connection = initialize()
 
     assert MediaRepository(connection).list_all() == []
+
+
+# ReviewRepository --------------------------------------------------------------
+
+
+def _add_review(
+    repository: ReviewRepository,
+    exercise_uuid: UUID,
+    rating: ReviewRating,
+    reviewed_at: datetime,
+) -> UUID:
+    return repository.add(exercise_uuid, rating, reviewed_at=reviewed_at)
+
+
+def test_add_review_persists_row() -> None:
+    connection = initialize()
+    exercise_uuid = ExerciseRepository(connection).add(
+        Exercise(prompt="p", answer="a", identifier="ex1")
+    )
+
+    ReviewRepository(connection).add(
+        exercise_uuid, ReviewRating.GOOD, reviewed_at=datetime.now(tz=UTC)
+    )
+
+    row = connection.execute(
+        "SELECT exercise_uuid, reviewed_at, rating FROM reviews"
+    ).fetchone()
+
+    assert row["exercise_uuid"] == str(exercise_uuid)
+    assert row["rating"] == int(ReviewRating.GOOD)
+
+
+def test_list_for_returns_reviews_in_chronological_order() -> None:
+    connection = initialize()
+    exercise_uuid = ExerciseRepository(connection).add(
+        Exercise(prompt="p", answer="a", identifier="ex2")
+    )
+    repo = ReviewRepository(connection)
+
+    t1 = datetime(2026, 1, 1, tzinfo=UTC)
+    t2 = datetime(2026, 2, 1, tzinfo=UTC)
+    t3 = datetime(2026, 3, 1, tzinfo=UTC)
+
+    _add_review(repo, exercise_uuid, ReviewRating.WRONG, t2)
+    _add_review(repo, exercise_uuid, ReviewRating.GOOD, t1)
+    _add_review(repo, exercise_uuid, ReviewRating.EASY, t3)
+
+    reviews = repo.list_by_exercise(exercise_uuid)
+
+    assert [r.rating for r in reviews] == [
+        ReviewRating.GOOD,
+        ReviewRating.WRONG,
+        ReviewRating.EASY,
+    ]
+
+
+def test_no_fold_when_within_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    connection = initialize()
+    exercise_uuid = ExerciseRepository(connection).add(
+        Exercise(prompt="p", answer="a", identifier="ex3")
+    )
+    repo = ReviewRepository(connection)
+    monkeypatch.setattr("exercise_library.repository.RETAINED_REVIEWS_PER_EXERCISE", 3)
+
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    for i in range(3):
+        _add_review(
+            repo,
+            exercise_uuid,
+            ReviewRating.GOOD,
+            base.replace(day=base.day + i),
+        )
+
+    assert repo.get_archived_stats(exercise_uuid) is None
+    assert len(repo.list_by_exercise(exercise_uuid)) == 3
+
+
+def test_fold_moves_oldest_reviews_into_summary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = initialize()
+    exercise_uuid = ExerciseRepository(connection).add(
+        Exercise(prompt="p", answer="a", identifier="ex4")
+    )
+    repo = ReviewRepository(connection)
+    monkeypatch.setattr("exercise_library.repository.RETAINED_REVIEWS_PER_EXERCISE", 2)
+
+    t0 = datetime(2026, 1, 1, tzinfo=UTC)
+    t1 = datetime(2026, 1, 2, tzinfo=UTC)
+    t2 = datetime(2026, 1, 3, tzinfo=UTC)
+    t3 = datetime(2026, 1, 4, tzinfo=UTC)
+
+    _add_review(repo, exercise_uuid, ReviewRating.WRONG, t0)
+    _add_review(repo, exercise_uuid, ReviewRating.HARD, t1)
+    _add_review(repo, exercise_uuid, ReviewRating.GOOD, t2)
+    _add_review(repo, exercise_uuid, ReviewRating.EASY, t3)
+
+    remaining = repo.list_by_exercise(exercise_uuid)
+    assert [r.rating for r in remaining] == [ReviewRating.GOOD, ReviewRating.EASY]
+
+    archived = repo.get_archived_stats(exercise_uuid)
+    assert archived is not None
+    assert archived.total_reviews == 2
+    assert archived.failures == 2  # WRONG + HARD folded
+    assert archived.first_reviewed_at == t0
+
+
+def test_fold_accumulates_across_multiple_folds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = initialize()
+    exercise_uuid = ExerciseRepository(connection).add(
+        Exercise(prompt="p", answer="a", identifier="ex5")
+    )
+    repo = ReviewRepository(connection)
+    monkeypatch.setattr("exercise_library.repository.RETAINED_REVIEWS_PER_EXERCISE", 2)
+
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    ratings = [
+        ReviewRating.WRONG,
+        ReviewRating.GOOD,
+        ReviewRating.HARD,
+        ReviewRating.WRONG,
+        ReviewRating.GOOD,
+    ]
+    for i, rating in enumerate(ratings):
+        _add_review(
+            repo,
+            exercise_uuid,
+            rating,
+            base.replace(day=base.day + i),
+        )
+
+    archived = repo.get_archived_stats(exercise_uuid)
+    assert archived is not None
+    assert archived.total_reviews == 3
+    assert archived.failures == 2  # folded WRONG + HARD
+    assert archived.first_reviewed_at == base
+
+    remaining = repo.list_by_exercise(exercise_uuid)
+    assert [r.rating for r in remaining] == [ReviewRating.WRONG, ReviewRating.GOOD]
+
+
+def test_latest_per_exercise_returns_most_recent() -> None:
+    connection = initialize()
+    a = ExerciseRepository(connection).add(
+        Exercise(prompt="p", answer="a", identifier="exA")
+    )
+    b = ExerciseRepository(connection).add(
+        Exercise(prompt="p", answer="a", identifier="exB")
+    )
+    repo = ReviewRepository(connection)
+
+    t1 = datetime(2026, 1, 1, tzinfo=UTC)
+    t2 = datetime(2026, 2, 1, tzinfo=UTC)
+
+    _add_review(repo, a, ReviewRating.WRONG, t1)
+    _add_review(repo, a, ReviewRating.GOOD, t2)
+    _add_review(repo, b, ReviewRating.EASY, t1)
+
+    latest = repo.latest_per_exercise()
+
+    assert latest[a].rating == ReviewRating.GOOD
+    assert latest[b].rating == ReviewRating.EASY

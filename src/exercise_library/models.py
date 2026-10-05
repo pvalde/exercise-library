@@ -10,6 +10,11 @@ class ReviewRating(IntEnum):
     GOOD = 2
     EASY = 3
 
+    @property
+    def is_failure(self) -> bool:
+        """Whether this rating counts as a failure in review statistics."""
+        return self in (ReviewRating.WRONG, ReviewRating.HARD)
+
 
 @dataclass(frozen=True)
 class Exercise:
@@ -36,7 +41,7 @@ class Review:
 
 
 @dataclass(frozen=True)
-class ReviewSummary:
+class ArchivedReviewStats:
     exercise_uuid: UUID
     total_reviews: int
     failures: int
