@@ -1,5 +1,5 @@
 from pathlib import Path
-from uuid import uuid7
+from uuid import UUID, uuid7
 
 import pytest
 
@@ -757,3 +757,27 @@ def test_next_accepts_all_flags() -> None:
 def test_next_rejects_invalid_status() -> None:
     with pytest.raises(SystemExit):
         Parser().get_args(["next", "--status", "bogus"])
+
+
+def test_rate_parses_positional_rating() -> None:
+    args = Parser().get_args(["rate", "good", "-I", "math::limits"])
+
+    assert args.command == "rate"
+    assert args.rating == "good"
+    assert args.identifier == "math::limits"
+    assert args.uuid is None
+
+
+def test_rate_requires_a_selector() -> None:
+    with pytest.raises(SystemExit):
+        Parser().get_args(["rate", "good"])
+
+
+def test_rate_rejects_both_selectors() -> None:
+    with pytest.raises(SystemExit):
+        Parser().get_args(["rate", "good", "-I", "x", "--uuid", str(UUID(int=0))])
+
+
+def test_rate_rejects_invalid_rating() -> None:
+    with pytest.raises(SystemExit):
+        Parser().get_args(["rate", "meh", "-I", "x"])

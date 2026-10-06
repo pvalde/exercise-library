@@ -267,6 +267,33 @@ class Parser:
             help="List the top candidates with their weights instead of picking one",
         )
 
+        # ------------------------------------------------------------------
+        # Rate command
+        # ------------------------------------------------------------------
+        self._rate_parser = subparsers.add_parser(
+            "rate",
+            help="Record a review rating for an exercise",
+        )
+
+        self._rate_parser.add_argument(
+            "rating",
+            choices=["wrong", "hard", "good", "easy"],
+            help="How the review went",
+        )
+
+        rate_selector = self._rate_parser.add_mutually_exclusive_group(required=True)
+
+        rate_selector.add_argument(
+            "-I",
+            "--identifier",
+            type=str,
+        )
+
+        rate_selector.add_argument(
+            "--uuid",
+            type=UUID,
+        )
+
         shtab.add_argument_to(self._parser)
 
     def _validate_add_args(

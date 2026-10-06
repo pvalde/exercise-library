@@ -23,6 +23,7 @@ from .edit_command import edit_exercise, edit_exercise_env_editor
 from .media_command import add_media, list_media
 from .next_command import next_exercise
 from .parser import Parser
+from .rate_command import rate_exercise
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,14 @@ def main() -> int:
                 identifier=args.identifier,
                 status=ReviewStatus(args.status),
                 dry_run=args.dry_run,
+            )
+
+        elif args.command == "rate":
+            rate_exercise(
+                application,
+                rating=args.rating,
+                identifier=args.identifier,
+                uuid=args.uuid,
             )
 
         elif args.command == "identifiers":
