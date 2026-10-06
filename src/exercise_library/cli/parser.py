@@ -238,6 +238,35 @@ class Parser:
             help="List stored media",
         )
 
+        # ------------------------------------------------------------------
+        # Next command
+        # ------------------------------------------------------------------
+        self._next_parser = subparsers.add_parser(
+            "next",
+            help="Print the next exercise to study (identifier or uuid)",
+        )
+
+        self._next_parser.add_argument(
+            "-I",
+            "--identifier",
+            type=str,
+            default=None,
+            help="Only consider exercises under this identifier prefix",
+        )
+
+        self._next_parser.add_argument(
+            "--status",
+            choices=["all", "new", "reviewed"],
+            default="all",
+            help="Filter by review status (default: all)",
+        )
+
+        self._next_parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="List the top candidates with their weights instead of picking one",
+        )
+
         shtab.add_argument_to(self._parser)
 
     def _validate_add_args(

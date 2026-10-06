@@ -735,3 +735,25 @@ def test_media_requires_subcommand(
 
     assert exc_info.value.code == 2
     assert "media_command" in capsys.readouterr().err
+
+
+def test_next_defaults() -> None:
+    args = Parser().get_args(["next"])
+
+    assert args.command == "next"
+    assert args.identifier is None
+    assert args.status == "all"
+    assert args.dry_run is False
+
+
+def test_next_accepts_all_flags() -> None:
+    args = Parser().get_args(["next", "-I", "math", "--status", "new", "--dry-run"])
+
+    assert args.identifier == "math"
+    assert args.status == "new"
+    assert args.dry_run is True
+
+
+def test_next_rejects_invalid_status() -> None:
+    with pytest.raises(SystemExit):
+        Parser().get_args(["next", "--status", "bogus"])

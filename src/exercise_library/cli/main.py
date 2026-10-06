@@ -9,6 +9,7 @@ from exercise_library.cli.show_command import show_exercise
 from exercise_library.config import APP_NAME
 from exercise_library.database import initialize
 from exercise_library.locking import ApplicationLockTimeout
+from exercise_library.models import ReviewStatus
 from exercise_library.paths import log_file_path
 from exercise_library.repository import (
     ExerciseRepository,
@@ -20,6 +21,7 @@ from .add_command import add_exercise, add_exercise_in_env_editor
 from .browse_command import browse_exercises
 from .edit_command import edit_exercise, edit_exercise_env_editor
 from .media_command import add_media, list_media
+from .next_command import next_exercise
 from .parser import Parser
 
 logger = logging.getLogger(__name__)
@@ -114,6 +116,14 @@ def main() -> int:
                 show_prompt=(args.field != "answer"),
                 show_answer=(args.field != "prompt"),
                 show_in_webbrowser=args.open_in_browser,
+            )
+
+        elif args.command == "next":
+            next_exercise(
+                application,
+                identifier=args.identifier,
+                status=ReviewStatus(args.status),
+                dry_run=args.dry_run,
             )
 
         elif args.command == "identifiers":

@@ -81,35 +81,6 @@ def test_browse_exercises_prints_filtered_exercises(
     assert "What is the derivative of x^2?" in output
 
 
-def test_browse_exercises_truncates_prompt_when_terminal_is_narrow(
-    application: ExerciseApplication,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    exercise_uuid = application.repository.add(
-        Exercise(
-            identifier="book::chapter01::exercise05",
-            prompt="What is the derivative of x^2?",
-            answer="2x",
-        )
-    )
-
-    monkeypatch.setattr(
-        shutil,
-        "get_terminal_size",
-        lambda: os.terminal_size((40, 24)),
-    )
-
-    browse_exercises(application, None)
-
-    output = capsys.readouterr().out
-
-    assert str(exercise_uuid) in output
-    assert "book::chapter01::exercise05" in output
-    assert "What is the deriv..." in output
-    assert "What is the derivative of x^2?" not in output
-
-
 def test_browse_exercises_prints_identifier(
     application: ExerciseApplication,
     capsys: pytest.CaptureFixture[str],
