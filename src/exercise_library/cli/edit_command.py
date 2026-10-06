@@ -67,7 +67,8 @@ def _edit_exercise_env_editor(
             raise EditError(
                 f"'{new_identifier}' is an invalid identifier."
                 + "\nIt can only contain "
-                + "letters, numbers, dash, underscore and '::' separators."
+                + "letters, numbers, dash, underscore and '::' separators, "
+                + "and it cannot look like a uuid."
             )
 
         if application.identifier_exists(new_identifier):

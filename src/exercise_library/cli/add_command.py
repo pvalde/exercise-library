@@ -22,7 +22,8 @@ def _add_exercise_in_env_editor(
             raise AddInteractiveError(
                 f"'{exercise_identifier}' is an invalid identifier."
                 + "\nIt can only contain "
-                + "letters, numbers, dash, underscore and '::' separators."
+                + "letters, numbers, dash, underscore and '::' separators, "
+                + "and it cannot look like a uuid."
             )
 
         if application.identifier_exists(exercise_identifier):

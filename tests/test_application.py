@@ -893,6 +893,73 @@ def test_record_review_rejects_unknown_uuid(
         application.record_review(uuid7(), "good")
 
 
+def test_record_review_by_uuid_string_selector(
+    application: ExerciseApplication,
+) -> None:
+    exercise_uuid = application.add_exercise(prompt="p", answer="a")
+
+    application.record_review(str(exercise_uuid), "good")
+
+    stats = application.review_stats(str(exercise_uuid))
+    assert stats.total_reviews == 1
+
+
+UUID_SHAPED_IDENTIFIERS = [
+    "550e8400-e29b-41d4-a716-446655440000",
+    "550E8400E29B41D4A716446655440000",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+]
+
+
+@pytest.mark.parametrize("identifier", UUID_SHAPED_IDENTIFIERS)
+def test_add_exercise_rejects_uuid_shaped_identifier(
+    application: ExerciseApplication,
+    identifier: str,
+) -> None:
+    with pytest.raises(InvalidExerciseError, match="cannot look like a uuid"):
+        application.add_exercise(prompt="p", answer="a", identifier=identifier)
+
+
+def test_update_exercise_rejects_uuid_shaped_identifier(
+    application: ExerciseApplication,
+) -> None:
+    exercise_uuid = application.add_exercise(prompt="p", answer="a")
+
+    updated = Exercise(
+        uuid=exercise_uuid,
+        identifier=str(uuid7()),
+        prompt="p",
+        answer="a",
+    )
+
+    with pytest.raises(InvalidExerciseError, match="cannot look like a uuid"):
+        application.update_exercise(updated)
+
+
+def test_get_exercise_by_identifier_rejects_uuid_shaped_identifier(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(InvalidExerciseError, match="cannot look like a uuid"):
+        application.get_exercise_by_identifier(str(uuid7()))
+
+
+def test_uuid_string_selector_resolves_when_no_identifier_match(
+    application: ExerciseApplication,
+) -> None:
+    exercise_uuid = application.add_exercise(prompt="p", answer="a")
+
+    stats = application.review_stats(str(exercise_uuid))
+
+    assert stats.exercise_uuid == exercise_uuid
+
+
+def test_record_review_rejects_unknown_uuid_string(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(InvalidExerciseError, match="No exercise found"):
+        application.record_review(str(uuid7()), "good")
+
+
 def test_review_stats_counts_window_failures(
     application: ExerciseApplication,
 ) -> None:

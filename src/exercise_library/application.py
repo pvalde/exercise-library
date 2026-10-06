@@ -62,7 +62,8 @@ INVALID_IDENTIFIER_MSG = (
 def invalid_identifier_msg(identifier: str) -> str:
     return (
         f"'{identifier}' is an invalid identifier.\nIt can only contain "
-        + "letters, numbers, dash, underscore and '::' separators."
+        + "letters, numbers, dash, underscore and '::' separators, "
+        + "and it cannot look like a uuid."
     )
 
 
@@ -120,7 +121,13 @@ class ExerciseApplication:
     review_repository: ReviewRepository
 
     def _is_valid_identifier(self, identifier: str) -> bool:
-        return bool(_IDENTIFIER_PATTERN.fullmatch(identifier))
+        if not _IDENTIFIER_PATTERN.fullmatch(identifier):
+            return False
+        try:
+            UUID(identifier)
+        except ValueError:
+            return True
+        return False
 
     def _check_media_references(self, *texts: str) -> None:
         invalid: set[str] = set()
@@ -335,7 +342,25 @@ class ExerciseApplication:
     def _resolve_exercise(self, identifier_or_uuid: str | UUID) -> Exercise:
         if isinstance(identifier_or_uuid, UUID):
             return self.get_exercise_by_uuid(identifier_or_uuid)
-        return self.get_exercise_by_identifier(identifier_or_uuid)
+
+        try:
+            return self.get_exercise_by_identifier(identifier_or_uuid)
+        except InvalidExerciseError:
+            pass
+
+        try:
+            parsed_uuid = UUID(identifier_or_uuid)
+        except ValueError:
+            raise InvalidExerciseError(
+                f"No exercise found for selector: {identifier_or_uuid!r}"
+            ) from None
+
+        try:
+            return self.get_exercise_by_uuid(parsed_uuid)
+        except InvalidExerciseError:
+            raise InvalidExerciseError(
+                f"No exercise found for selector: {identifier_or_uuid!r}"
+            ) from None
 
     @staticmethod
     def _parse_rating(rating: ReviewRating | str) -> ReviewRating:
