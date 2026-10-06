@@ -454,7 +454,7 @@ def test_edit_command_interactive_ignores_new_content_cli_args() -> None:
 # ------------------------------------------------------------------------------
 
 
-def test_show_command_requires_identifier_or_uuid(
+def test_show_command_requires_selector(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
 
@@ -469,48 +469,39 @@ def test_show_command_requires_identifier_or_uuid(
 
     captured = capsys.readouterr()
 
-    assert (
-        "show: error: one of the arguments --identifier/-I --uuid is required"
-        in captured.err
+    assert "show: error: the following arguments are required: selector" in (
+        captured.err
     )
 
-    args = Parser().get_args(["show", "-I", "identifier"])
-    assert args.identifier == "identifier"
+    args = Parser().get_args(["show", "identifier"])
+    assert args.selector == "identifier"
 
     uuid = uuid7()
 
-    args = Parser().get_args(["show", "--uuid", str(uuid)])
-    assert args.uuid == uuid
+    args = Parser().get_args(["show", str(uuid)])
+    assert args.selector == str(uuid)
 
 
-def test_show_command_raises_if_identifier_and_uuid_provided(
+def test_show_command_rejects_old_selector_flags(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    uuid = uuid7()
-
     with pytest.raises(SystemExit) as exc_info:
-        Parser().get_args(["show", "--uuid", str(uuid), "-I", "identifier"])
+        Parser().get_args(["show", "-I", "identifier"])
 
     assert exc_info.value.code == 2
 
     captured = capsys.readouterr()
 
-    assert (
-        "show: error: argument --identifier/-I: not allowed with argument --uuid"
-        in captured.err
-    )
+    assert "unrecognized arguments: -I" in captured.err
 
     with pytest.raises(SystemExit) as exc_info:
-        Parser().get_args(["show", "-I", "identifier", "--uuid", str(uuid)])
+        Parser().get_args(["show", "--uuid", str(uuid7())])
 
     assert exc_info.value.code == 2
 
     captured = capsys.readouterr()
 
-    assert (
-        "show: error: argument --uuid: not allowed with argument --identifier/-I"
-        in captured.err
-    )
+    assert "unrecognized arguments: --uuid" in captured.err
 
 
 def test_show_command_accepts_only_one_field(
@@ -518,7 +509,7 @@ def test_show_command_accepts_only_one_field(
 ) -> None:
 
     with pytest.raises(SystemExit) as exc_info:
-        Parser().get_args(["show", "-I", "identifier", "-f", "prompt", "-f", "answer"])
+        Parser().get_args(["show", "identifier", "-f", "prompt", "-f", "answer"])
 
     assert exc_info.value.code == 2
 
@@ -527,7 +518,7 @@ def test_show_command_accepts_only_one_field(
 
     with pytest.raises(SystemExit) as exc_info:
         Parser().get_args(
-            ["show", "-I", "identifier", "--field", "prompt", "--field", "answer"]
+            ["show", "identifier", "--field", "prompt", "--field", "answer"]
         )
 
     assert exc_info.value.code == 2
@@ -536,9 +527,7 @@ def test_show_command_accepts_only_one_field(
     assert "show: error: --field may only be specified once" in captured.err
 
     with pytest.raises(SystemExit) as exc_info:
-        Parser().get_args(
-            ["show", "-I", "identifier", "-f", "prompt", "--field", "answer"]
-        )
+        Parser().get_args(["show", "identifier", "-f", "prompt", "--field", "answer"])
 
     assert exc_info.value.code == 2
 
@@ -546,9 +535,7 @@ def test_show_command_accepts_only_one_field(
     assert "show: error: --field may only be specified once" in captured.err
 
     with pytest.raises(SystemExit) as exc_info:
-        Parser().get_args(
-            ["show", "-I", "identifier", "--field", "prompt", "-f", "answer"]
-        )
+        Parser().get_args(["show", "identifier", "--field", "prompt", "-f", "answer"])
 
     assert exc_info.value.code == 2
 
@@ -557,42 +544,38 @@ def test_show_command_accepts_only_one_field(
 
 
 def test_show_command_gets_args() -> None:
-    args = Parser().get_args(["show", "--identifier", "identifier", "-f", "prompt"])
+    args = Parser().get_args(["show", "identifier", "-f", "prompt"])
 
-    assert args.identifier == "identifier"
+    assert args.selector == "identifier"
     assert args.field == "prompt"
     assert not args.open_in_browser
 
     uuid = uuid7()
-    args = Parser().get_args(["show", "--uuid", str(uuid), "-f", "answer"])
+    args = Parser().get_args(["show", str(uuid), "-f", "answer"])
 
-    assert args.uuid == uuid
+    assert args.selector == str(uuid)
     assert args.field == "answer"
     assert not args.open_in_browser
 
 
 def test_show_command_gets_args_with_open_in_browser_option() -> None:
-    args = Parser().get_args(
-        ["show", "--identifier", "identifier", "-f", "prompt", "-o"]
-    )
+    args = Parser().get_args(["show", "identifier", "-f", "prompt", "-o"])
 
-    assert args.identifier == "identifier"
+    assert args.selector == "identifier"
     assert args.field == "prompt"
     assert args.open_in_browser
 
     uuid = uuid7()
-    args = Parser().get_args(
-        ["show", "--uuid", str(uuid), "-f", "answer", "--open-in-browser"]
-    )
+    args = Parser().get_args(["show", str(uuid), "-f", "answer", "--open-in-browser"])
 
-    assert args.uuid == uuid
+    assert args.selector == str(uuid)
     assert args.field == "answer"
     assert args.open_in_browser
 
 
 def test_show_command_rejects_unknown_field(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exc_info:
-        Parser().get_args(["show", "--identifier", "identifier", "-f", "unknown"])
+        Parser().get_args(["show", "identifier", "-f", "unknown"])
 
     assert exc_info.value.code == 2
 

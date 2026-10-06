@@ -4,7 +4,6 @@ from collections.abc import Mapping, MutableMapping, Sequence
 from html import escape
 from pathlib import Path
 from typing import Any
-from uuid import UUID
 
 from markdown_it import MarkdownIt, token
 from mdit_py_plugins.dollarmath import dollarmath_plugin
@@ -30,20 +29,12 @@ class _MarkdownItWithFileLinks(MarkdownIt):
 
 def show_exercise(
     application: ExerciseApplication,
-    uuid: UUID | None = None,
-    identifier: str | None = None,
+    selector: str,
     show_prompt: bool = False,
     show_answer: bool = False,
     show_in_webbrowser: bool = False,
 ) -> None:
-    if uuid is None and identifier is None:
-        raise ShowError("At least one of 'uuid' or 'identifier' must be provided.")
-
-    if uuid:
-        exercise = application.get_exercise_by_uuid(uuid)
-    else:
-        assert identifier is not None
-        exercise = application.get_exercise_by_identifier(identifier)
+    exercise = application.resolve_exercise(selector)
 
     if show_in_webbrowser:
         _open_webbrowser(

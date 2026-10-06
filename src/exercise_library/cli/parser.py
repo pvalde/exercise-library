@@ -150,17 +150,10 @@ class Parser:
             help="Show an exercise.",
         )
 
-        selector = self._show_parser.add_mutually_exclusive_group(required=True)
-
-        selector.add_argument(
-            "--identifier",
-            "-I",
+        self._show_parser.add_argument(
+            "selector",
             type=str,
-        )
-
-        selector.add_argument(
-            "--uuid",
-            type=UUID,
+            help="Exercise identifier or uuid",
         )
 
         self._show_parser.add_argument(

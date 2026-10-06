@@ -112,8 +112,7 @@ def main() -> int:
         elif args.command == "show":
             show_exercise(
                 application,
-                uuid=args.uuid,
-                identifier=args.identifier,
+                selector=args.selector,
                 show_prompt=(args.field != "answer"),
                 show_answer=(args.field != "prompt"),
                 show_in_webbrowser=args.open_in_browser,

@@ -1,22 +1,21 @@
 import webbrowser
 from pathlib import Path
-from unittest.mock import Mock
 
 import pytest
 
-from exercise_library.application import ExerciseApplication
-from exercise_library.cli.show_command import ShowError, show_exercise
+from exercise_library.application import ExerciseApplication, InvalidExerciseError
+from exercise_library.cli.show_command import show_exercise
 from exercise_library.paths import media_dir_path
 
 
-def test_show_exercise_raises_if_not_uuid_and_identifier() -> None:
-    application = Mock()
+def test_show_exercise_raises_for_unknown_selector(
+    application: ExerciseApplication,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(InvalidExerciseError, match="No exercise found"):
+        show_exercise(application, selector="missing")
 
-    with pytest.raises(
-        ShowError,
-        match="At least one of 'uuid' or 'identifier' must be provided.",
-    ):
-        show_exercise(application, uuid=None, identifier=None)
+    assert capsys.readouterr().out == ""
 
 
 def test_show_exercise_renders_terminal_placeholder(
@@ -35,7 +34,7 @@ def test_show_exercise_renders_terminal_placeholder(
 
     show_exercise(
         application,
-        identifier="exercise1",
+        selector="exercise1",
         show_prompt=True,
         show_answer=True,
     )
@@ -58,7 +57,7 @@ def test_show_exercise_leaves_plain_text_untouched(
 
     show_exercise(
         application,
-        identifier="exercise1",
+        selector="exercise1",
         show_prompt=True,
         show_answer=True,
     )
@@ -92,7 +91,7 @@ def test_show_exercise_renders_browser_image(
 
     show_exercise(
         application,
-        identifier="exercise1",
+        selector="exercise1",
         show_prompt=True,
         show_answer=True,
         show_in_webbrowser=True,
@@ -123,7 +122,7 @@ def test_show_exercise_escapes_raw_html(
 
     show_exercise(
         application,
-        identifier="exercise1",
+        selector="exercise1",
         show_prompt=True,
         show_answer=True,
         show_in_webbrowser=True,
