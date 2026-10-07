@@ -72,14 +72,9 @@ def select_next_exercise(
     candidates: list[Exercise] = []
     weights: list[float] = []
 
-    for exercise in application.browse_exercises(identifier):
+    for exercise in application.browse_exercises(identifier, status):
         assert exercise.uuid is not None
         stats = application.review_stats(exercise.uuid)
-
-        if status is ReviewStatus.NEW and stats.total_reviews > 0:
-            continue
-        if status is ReviewStatus.REVIEWED and stats.total_reviews == 0:
-            continue
 
         candidates.append(exercise)
         weights.append(compute_weight(stats, now=now))

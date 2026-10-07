@@ -37,14 +37,9 @@ def _print_dry_run(
     rows: list[tuple[float, str, str]] = []
     now = datetime.now(tz=UTC)
 
-    for exercise in application.browse_exercises(identifier):
+    for exercise in application.browse_exercises(identifier, status):
         assert exercise.uuid is not None
         stats = application.review_stats(exercise.uuid)
-
-        if status is ReviewStatus.NEW and stats.total_reviews > 0:
-            continue
-        if status is ReviewStatus.REVIEWED and stats.total_reviews == 0:
-            continue
 
         weight = compute_weight(stats, now=now)
         label = exercise.identifier or str(exercise.uuid)

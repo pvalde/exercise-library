@@ -12,7 +12,7 @@ from exercise_library.application import (
     InvalidMediaError,
     InvalidReviewRatingError,
 )
-from exercise_library.models import Exercise, Media
+from exercise_library.models import Exercise, Media, ReviewStatus
 from exercise_library.paths import media_dir_path
 
 
@@ -172,6 +172,65 @@ def test_browse_exercises_filters_by_identifier(
     assert exercises[1].prompt == "Exercise 2"
     assert exercises[1].answer == "Answer 2"
     assert exercises[1].identifier == "book::chapter01::exercise02"
+
+
+def test_browse_exercises_filters_by_review_status(
+    application: ExerciseApplication,
+) -> None:
+    new_uuid = application.repository.add(
+        Exercise(prompt="New exercise", answer="Answer 1"),
+    )
+    reviewed_uuid = application.repository.add(
+        Exercise(prompt="Reviewed exercise", answer="Answer 2"),
+    )
+    application.record_review(reviewed_uuid, "good")
+
+    new = application.browse_exercises(status=ReviewStatus.NEW)
+    reviewed = application.browse_exercises(status=ReviewStatus.REVIEWED)
+    everything = application.browse_exercises(status=ReviewStatus.ALL)
+
+    assert [exercise.uuid for exercise in new] == [new_uuid]
+    assert [exercise.uuid for exercise in reviewed] == [reviewed_uuid]
+    assert [exercise.uuid for exercise in everything] == [new_uuid, reviewed_uuid]
+
+
+def test_browse_exercises_filters_by_identifier_and_status(
+    application: ExerciseApplication,
+) -> None:
+    application.repository.add(
+        Exercise(
+            prompt="Exercise 1",
+            answer="Answer 1",
+            identifier="book::chapter01::exercise01",
+        ),
+    )
+    chapter02_uuid = application.repository.add(
+        Exercise(
+            prompt="Exercise 2",
+            answer="Answer 2",
+            identifier="book::chapter02::exercise01",
+        ),
+    )
+    application.record_review(chapter02_uuid, "hard")
+
+    exercises = application.browse_exercises(
+        "book::chapter01",
+        ReviewStatus.NEW,
+    )
+
+    assert [exercise.identifier for exercise in exercises] == [
+        "book::chapter01::exercise01"
+    ]
+
+
+def test_browse_exercises_status_filter_returns_empty_when_none_match(
+    application: ExerciseApplication,
+) -> None:
+    application.repository.add(
+        Exercise(prompt="New exercise", answer="Answer"),
+    )
+
+    assert application.browse_exercises(status=ReviewStatus.REVIEWED) == []
 
 
 @pytest.mark.parametrize(

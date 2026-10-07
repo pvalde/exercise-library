@@ -13,7 +13,7 @@ from exercise_library.media import (
     media_type_for_name,
     referenced_media_names,
 )
-from exercise_library.models import Exercise, Media, ReviewRating
+from exercise_library.models import Exercise, Media, ReviewRating, ReviewStatus
 from exercise_library.paths import media_dir_path
 from exercise_library.repository import (
     DuplicateIdentifierError,
@@ -185,8 +185,21 @@ class ExerciseApplication:
     def browse_exercises(
         self,
         identifier: str | None = None,
+        status: ReviewStatus = ReviewStatus.ALL,
     ) -> list[Exercise]:
-        return self.repository.browse(identifier)
+        exercises = self.repository.browse(identifier)
+
+        if status is ReviewStatus.ALL:
+            return exercises
+
+        def is_reviewed(exercise: Exercise) -> bool:
+            assert exercise.uuid is not None
+            return self.review_stats(exercise.uuid).total_reviews > 0
+
+        want_reviewed = status is ReviewStatus.REVIEWED
+        return [
+            exercise for exercise in exercises if is_reviewed(exercise) == want_reviewed
+        ]
 
     def backup_data(
         self,
