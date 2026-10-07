@@ -5,7 +5,7 @@ from exercise_library.application import ExerciseApplication
 from exercise_library.models import ReviewStatus
 from exercise_library.review import compute_weight, select_next_exercise
 
-from .table import print_three_column_table
+from .table import Adapt, Fill, Fixed, print_table
 
 _DRY_RUN_LIMIT = 10
 
@@ -52,12 +52,11 @@ def _print_dry_run(
 
     rows.sort(key=lambda row: row[0], reverse=True)
 
-    print_three_column_table(
-        first_col_width=10,
-        second_col_max=40,
+    print_table(
         headers=["WEIGHT", "IDENTIFIER", "PROMPT"],
         rows=[
             [f"{weight:.3f}", label, preview]
             for weight, label, preview in rows[:_DRY_RUN_LIMIT]
         ],
+        widths=[Fixed(10), Adapt(40), Fill()],
     )

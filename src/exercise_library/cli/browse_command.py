@@ -1,7 +1,7 @@
 from exercise_library.application import ExerciseApplication
 from exercise_library.models import Exercise
 
-from .table import print_three_column_table
+from .table import Adapt, Fill, Fixed, print_table
 
 
 def browse_exercises(
@@ -27,9 +27,8 @@ def _print_table(exercises: list[Exercise]) -> None:
         prompt_str = exercise.prompt.split("\n")[0]
         rows.append([uuid_str, id_str, prompt_str])
 
-    print_three_column_table(
-        first_col_width=36,
-        second_col_max=40,
+    print_table(
         headers=headers,
         rows=rows,
+        widths=[Fixed(36), Adapt(40), Fill()],
     )
