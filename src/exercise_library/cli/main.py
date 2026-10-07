@@ -129,9 +129,8 @@ def main() -> int:
         elif args.command == "rate":
             rate_exercise(
                 application,
+                selector=args.selector,
                 rating=args.rating,
-                identifier=args.identifier,
-                uuid=args.uuid,
             )
 
         elif args.command == "identifiers":

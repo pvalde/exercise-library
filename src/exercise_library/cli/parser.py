@@ -2,7 +2,6 @@ import argparse
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
-from uuid import UUID
 
 import shtab
 
@@ -269,22 +268,15 @@ class Parser:
         )
 
         self._rate_parser.add_argument(
+            "selector",
+            type=str,
+            help="Exercise identifier or uuid",
+        )
+
+        self._rate_parser.add_argument(
             "rating",
             choices=["wrong", "hard", "good", "easy"],
             help="How the review went",
-        )
-
-        rate_selector = self._rate_parser.add_mutually_exclusive_group(required=True)
-
-        rate_selector.add_argument(
-            "-I",
-            "--identifier",
-            type=str,
-        )
-
-        rate_selector.add_argument(
-            "--uuid",
-            type=UUID,
         )
 
         shtab.add_argument_to(self._parser)

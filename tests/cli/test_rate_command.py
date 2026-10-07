@@ -9,7 +9,7 @@ def test_rate_records_and_confirms(
 ) -> None:
     application.add_exercise(prompt="p", answer="a", identifier="math::limits")
 
-    rate_exercise(application, rating="good", identifier="math::limits")
+    rate_exercise(application, selector="math::limits", rating="good")
 
     out = capsys.readouterr().out
     assert "math::limits" in out
@@ -23,15 +23,15 @@ def test_rate_records_and_confirms(
 def test_rate_with_uuid(application: ExerciseApplication) -> None:
     exercise_uuid = application.add_exercise(prompt="p", answer="a")
 
-    rate_exercise(application, rating="wrong", uuid=exercise_uuid)
+    rate_exercise(application, selector=str(exercise_uuid), rating="wrong")
 
     stats = application.review_stats(exercise_uuid)
     assert stats.total_reviews == 1
     assert stats.failures == 1
 
 
-def test_rate_unknown_identifier_raises(
+def test_rate_unknown_selector_raises(
     application: ExerciseApplication,
 ) -> None:
     with pytest.raises(InvalidExerciseError):
-        rate_exercise(application, rating="good", identifier="nope::none")
+        rate_exercise(application, selector="nope::none", rating="good")

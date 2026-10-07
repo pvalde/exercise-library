@@ -1,5 +1,5 @@
 from pathlib import Path
-from uuid import UUID, uuid7
+from uuid import uuid7
 
 import pytest
 
@@ -742,25 +742,62 @@ def test_next_rejects_invalid_status() -> None:
         Parser().get_args(["next", "--status", "bogus"])
 
 
-def test_rate_parses_positional_rating() -> None:
-    args = Parser().get_args(["rate", "good", "-I", "math::limits"])
+def test_rate_parses_positional_selector_and_rating() -> None:
+    args = Parser().get_args(["rate", "math::limits", "good"])
 
     assert args.command == "rate"
+    assert args.selector == "math::limits"
     assert args.rating == "good"
-    assert args.identifier == "math::limits"
-    assert args.uuid is None
 
 
-def test_rate_requires_a_selector() -> None:
-    with pytest.raises(SystemExit):
-        Parser().get_args(["rate", "good"])
+def test_rate_parses_uuid_selector() -> None:
+    uuid = uuid7()
+
+    args = Parser().get_args(["rate", str(uuid), "good"])
+
+    assert args.selector == str(uuid)
+    assert args.rating == "good"
 
 
-def test_rate_rejects_both_selectors() -> None:
-    with pytest.raises(SystemExit):
-        Parser().get_args(["rate", "good", "-I", "x", "--uuid", str(UUID(int=0))])
+def test_rate_requires_a_selector_and_rating(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["rate"])
+
+    assert exc_info.value.code == 2
+    assert "the following arguments are required: selector, rating" in (
+        capsys.readouterr().err
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["rate", "math::limits"])
+
+    assert exc_info.value.code == 2
+    assert "the following arguments are required: rating" in capsys.readouterr().err
 
 
-def test_rate_rejects_invalid_rating() -> None:
-    with pytest.raises(SystemExit):
-        Parser().get_args(["rate", "meh", "-I", "x"])
+def test_rate_rejects_old_selector_flags(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["rate", "-I", "math::limits", "good"])
+
+    assert exc_info.value.code == 2
+    assert "unrecognized arguments: -I" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["rate", "--uuid", str(uuid7()), "good"])
+
+    assert exc_info.value.code == 2
+    assert "unrecognized arguments: --uuid" in capsys.readouterr().err
+
+
+def test_rate_rejects_invalid_rating(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["rate", "math::limits", "meh"])
+
+    assert exc_info.value.code == 2
+    assert "invalid choice: 'meh'" in capsys.readouterr().err
