@@ -93,15 +93,13 @@ def main() -> int:
             if args.interactive:
                 edit_exercise_env_editor(
                     application=application,
-                    exercise_uuid=args.uuid,
-                    identifier=args.identifier,
+                    selector=args.selector,
                 )
 
             else:
                 edit_exercise(
                     application=application,
-                    exercise_uuid=args.uuid,
-                    identifier=args.identifier,
+                    selector=args.selector,
                     new_prompt=args.new_prompt,
                     new_answer=args.new_answer,
                     new_identifier=args.new_identifier,

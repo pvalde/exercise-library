@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from uuid import UUID
 
 from exercise_library.application import ExerciseApplication
 from exercise_library.models import Exercise
@@ -12,33 +11,15 @@ class EditError(CLIError):
     pass
 
 
-def _get_exercise(
-    application: ExerciseApplication,
-    exercise_uuid: UUID | None = None,
-    identifier: str | None = None,
-) -> Exercise:
-    if exercise_uuid is None and identifier is None:
-        raise EditError("At least one of 'uuid' or 'identifier' must be provided.")
-
-    if exercise_uuid:
-        exercise = application.get_exercise_by_uuid(exercise_uuid)
-    else:
-        assert identifier is not None
-        exercise = application.get_exercise_by_identifier(identifier)
-
-    return exercise
-
-
 def edit_exercise(
     application: ExerciseApplication,
-    exercise_uuid: UUID | None = None,
-    identifier: str | None = None,
+    selector: str,
     new_prompt: str | None = None,
     new_answer: str | None = None,
     new_identifier: str | None = None,
 ) -> None:
 
-    exercise = _get_exercise(application, exercise_uuid, identifier)
+    exercise = application.resolve_exercise(selector)
 
     exercise = Exercise(
         uuid=exercise.uuid,
@@ -53,10 +34,9 @@ def _edit_exercise_env_editor(
     application: ExerciseApplication,
     identifier_prompt: Callable[[str, str | None], str | None],
     editor_launcher: Callable[[str, dict[str, str], str | None], str | None],
-    exercise_uuid: UUID | None = None,
-    identifier: str | None = None,
+    selector: str,
 ) -> None:
-    exercise = _get_exercise(application, exercise_uuid, identifier)
+    exercise = application.resolve_exercise(selector)
 
     new_identifier: str | None = identifier_prompt(
         "Identifier (optional): ", exercise.identifier
@@ -101,14 +81,12 @@ def _edit_exercise_env_editor(
 
 def edit_exercise_env_editor(
     application: ExerciseApplication,
-    exercise_uuid: UUID | None = None,
-    identifier: str | None = None,
+    selector: str,
 ) -> None:
 
     return _edit_exercise_env_editor(
         application=application,
         identifier_prompt=inline_prompt,
         editor_launcher=edit_in_env_editor,
-        exercise_uuid=exercise_uuid,
-        identifier=identifier,
+        selector=selector,
     )

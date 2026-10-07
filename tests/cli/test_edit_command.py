@@ -1,348 +1,152 @@
 from unittest.mock import Mock
-from uuid import UUID, uuid7
 
 import pytest
 
-from exercise_library.application import ExerciseApplication
+from exercise_library.application import ExerciseApplication, InvalidExerciseError
 from exercise_library.cli.edit_command import (
     EditError,
     _edit_exercise_env_editor,
     edit_exercise,
-    edit_exercise_env_editor,
-)
-from exercise_library.database import initialize
-from exercise_library.models import Exercise
-from exercise_library.repository import (
-    ExerciseRepository,
-    MediaRepository,
-    ReviewRepository,
 )
 
 # ------------------------------------------------------------------------------
-# edit_exercises
+# edit_exercise
 # ------------------------------------------------------------------------------
 
 
-def test_edit_exercise_raises_if_both_exercise_id_and_identifier_are_none() -> None:
-    application = Mock()
-    with pytest.raises(
-        EditError,
-        match="At least one of 'uuid' or 'identifier' must be provided.",
-    ):
-        edit_exercise(application)
+def test_edit_exercise_raises_for_unknown_selector(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(InvalidExerciseError, match="No exercise found"):
+        edit_exercise(application, selector="missing")
 
 
-def test_edit_exercise_success_if_at_least_exercise_uuid_is_provided() -> None:
-    exercise_uuid = uuid7()
-    application = Mock()
-
-    def fake_get_exercise_by_uuid(uuid: UUID) -> Exercise:
-        return Exercise(
-            uuid=uuid,
-            identifier="exercise1",
-            prompt="prompt",
-            answer="answer",
-        )
-
-    application.get_exercise_by_uuid.side_effect = Mock(
-        side_effect=fake_get_exercise_by_uuid
+def test_edit_exercise_with_uuid_selector(
+    application: ExerciseApplication,
+) -> None:
+    exercise_uuid = application.add_exercise(
+        prompt="prompt", answer="answer", identifier="exercise1"
     )
 
-    edit_exercise(application, exercise_uuid=exercise_uuid)
+    edit_exercise(application, selector=str(exercise_uuid))
 
-    application.get_exercise_by_uuid.assert_called_once()
-    application.update_exercise.assert_called_once_with(
-        Exercise(
-            uuid=exercise_uuid,
-            identifier="exercise1",
-            prompt="prompt",
-            answer="answer",
-        )
-    )
+    exercise = application.get_exercise_by_uuid(exercise_uuid)
+    assert exercise.identifier == "exercise1"
+    assert exercise.prompt == "prompt"
+    assert exercise.answer == "answer"
 
 
-def test_edit_exercise_success_if_at_least_exercise_identifier_is_provided() -> None:
-    original_identifier = "exercise1"
-    uuid = uuid7()
-    application = Mock()
+def test_edit_exercise_with_identifier_selector(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(prompt="prompt", answer="answer", identifier="exercise1")
 
-    def fake_get_exercise_by_identifier(identifier: str) -> Exercise:
-        return Exercise(
-            uuid=uuid,
-            identifier=original_identifier,
-            prompt="prompt",
-            answer="answer",
-        )
+    edit_exercise(application, selector="exercise1", new_prompt="new prompt")
 
-    application.get_exercise_by_identifier.side_effect = Mock(
-        side_effect=fake_get_exercise_by_identifier
-    )
-
-    edit_exercise(application, identifier=original_identifier)
-
-    application.get_exercise_by_identifier.assert_called_once()
-    application.update_exercise.assert_called_once_with(
-        Exercise(
-            uuid=uuid,
-            identifier=original_identifier,
-            prompt="prompt",
-            answer="answer",
-        )
-    )
+    exercise = application.get_exercise_by_identifier("exercise1")
+    assert exercise.prompt == "new prompt"
+    assert exercise.answer == "answer"
 
 
-def test_edit_exercise_uses_uuid_over_identifier() -> None:
-    uuid = uuid7()
-    identifier = "identifier"
-    application = Mock()
-    application.get_exercise_by_uuid = Mock()
-    application.get_exercise_by_identifier = Mock()
-
-    edit_exercise(application, exercise_uuid=uuid, identifier=identifier)
-
-    application.get_exercise_by_uuid.assert_called_once()
-    application.get_exercise_by_identifier.assert_not_called()
-
-
-def test_edit_exercise_updates_provided_fields() -> None:
-    uuid = uuid7()
-    application = Mock()
-
-    def fake_get_exercise_by_uuid(uuid: UUID) -> Exercise:
-        return Exercise(
-            uuid=uuid,
-            identifier="exercise1",
-            prompt="prompt",
-            answer="answer",
-        )
-
-    application.get_exercise_by_uuid.side_effect = Mock(
-        side_effect=fake_get_exercise_by_uuid
+def test_edit_exercise_updates_provided_fields(
+    application: ExerciseApplication,
+) -> None:
+    exercise_uuid = application.add_exercise(
+        prompt="prompt", answer="answer", identifier="exercise1"
     )
 
     edit_exercise(
         application,
-        exercise_uuid=uuid,
+        selector="exercise1",
         new_prompt="new_prompt",
         new_answer="new_answer",
         new_identifier="new_identifier",
     )
 
-    application.get_exercise_by_uuid.assert_called_once()
-    application.update_exercise.assert_called_once_with(
-        Exercise(
-            uuid=uuid,
-            identifier="new_identifier",
-            prompt="new_prompt",
-            answer="new_answer",
-        )
-    )
+    exercise = application.get_exercise_by_uuid(exercise_uuid)
+    assert exercise.identifier == "new_identifier"
+    assert exercise.prompt == "new_prompt"
+    assert exercise.answer == "new_answer"
 
 
 # ------------------------------------------------------------------------------
-# edit_exercise_env_editor
+# _edit_exercise_env_editor
 # ------------------------------------------------------------------------------
 
 
-def test_edit_ex_env_editor_raises_if_both_exercise_uuid_and_identifier_are_none() -> (
-    None
-):
-    application = Mock()
-
-    with pytest.raises(
-        EditError, match="At least one of 'uuid' or 'identifier' must be provided."
-    ):
-        edit_exercise_env_editor(application)
+def _fake_identifier_prompt(msg: str, identifier: str | None) -> str | None:
+    return "identifier"
 
 
-def test_edit_ex_env_success_if_at_least_exercise_uuid_is_provided() -> None:
-    uuid = uuid7()
-    application = Mock()
-    application.is_valid_idenfifier.return_value = True
-    application.identifier_exists.return_value = False
+def _fake_editor_launcher(
+    field_name: str,
+    context: dict[str, str],
+    initial_field_value: str | None,
+) -> str | None:
+    return f"new {field_name}"
 
-    def fake_get_exercise_by_uuid(uuid: UUID) -> Exercise:
-        return Exercise(
-            uuid=uuid,
-            identifier="exercise1",
-            prompt="prompt",
-            answer="answer",
+
+def test_edit_ex_env_editor_raises_for_unknown_selector(
+    application: ExerciseApplication,
+) -> None:
+    with pytest.raises(InvalidExerciseError, match="No exercise found"):
+        _edit_exercise_env_editor(
+            application,
+            Mock(),
+            Mock(),
+            selector="missing",
         )
 
-    application.get_exercise_by_uuid.side_effect = Mock(
-        side_effect=fake_get_exercise_by_uuid
+
+def test_edit_ex_env_editor_with_uuid_selector(
+    application: ExerciseApplication,
+) -> None:
+    exercise_uuid = application.add_exercise(
+        prompt="prompt", answer="answer", identifier="exercise1"
     )
-
-    def fake_identifier_prompt(msg: str, identifier: str | None) -> str | None:
-        return "identifier"
-
-    def fake_editor_launcher(
-        field_name: str,
-        context: dict[str, str],
-        initial_field_value: str | None,
-    ) -> str | None:
-        return field_name
 
     _edit_exercise_env_editor(
         application,
-        fake_identifier_prompt,
-        fake_editor_launcher,
-        uuid,
+        _fake_identifier_prompt,
+        _fake_editor_launcher,
+        selector=str(exercise_uuid),
     )
 
-    application.get_exercise_by_uuid.assert_called_once()
-    application.update_exercise.assert_called_once_with(
-        Exercise(
-            uuid=uuid,
-            identifier="identifier",
-            prompt="prompt",
-            answer="answer",
-        )
-    )
+    exercise = application.get_exercise_by_uuid(exercise_uuid)
+    assert exercise.identifier == "identifier"
+    assert exercise.prompt == "new prompt"
+    assert exercise.answer == "new answer"
 
 
-def test_edit_ex_env_success_if_at_least_exercise_identifier_is_provided() -> None:
-    uuid = uuid7()
-    identifier = "identifier"
-    application = Mock()
-
-    def fake_get_exercise_by_identifier(identifier: str) -> Exercise:
-        return Exercise(
-            uuid=uuid,
-            identifier=identifier,
-            prompt="prompt",
-            answer="answer",
-        )
-
-    application.get_exercise_by_identifier.side_effect = Mock(
-        side_effect=fake_get_exercise_by_identifier
-    )
-
-    def fake_identifier_prompt(msg: str, identifier: str | None) -> str | None:
-        return "identifier"
-
-    def fake_editor_launcher(
-        field_name: str,
-        context: dict[str, str],
-        initial_field_value: str | None,
-    ) -> str | None:
-        return field_name
+def test_edit_ex_env_editor_with_identifier_selector(
+    application: ExerciseApplication,
+) -> None:
+    application.add_exercise(prompt="prompt", answer="answer", identifier="exercise1")
 
     _edit_exercise_env_editor(
         application,
-        fake_identifier_prompt,
-        fake_editor_launcher,
-        identifier=identifier,
+        _fake_identifier_prompt,
+        _fake_editor_launcher,
+        selector="exercise1",
     )
 
-    application.get_exercise_by_identifier.assert_called_once()
-    application.update_exercise.assert_called_once_with(
-        Exercise(
-            uuid=uuid,
-            identifier="identifier",
-            prompt="prompt",
-            answer="answer",
-        )
-    )
+    exercise = application.get_exercise_by_identifier("identifier")
+    assert exercise.prompt == "new prompt"
+    assert exercise.answer == "new answer"
 
 
-def test_edit_ex_env_uses_uuid_over_identifier() -> None:
-    uuid = uuid7()
-    identifier = "identifier"
-    application = Mock()
-    application.is_valid_idenfifier.return_value = True
-    application.identifier_exists.return_value = False
-    application.get_exercise_by_uuid = Mock()
-    application.get_exercise_by_identifier = Mock()
-
-    def fake_identifier_prompt(msg: str, identifier: str | None) -> str | None:
-        return "identifier"
-
-    def fake_editor_launcher(
-        field_name: str,
-        context: dict[str, str],
-        initial_field_value: str | None,
-    ) -> str | None:
-        return field_name
-
-    _edit_exercise_env_editor(
-        application,
-        fake_identifier_prompt,
-        fake_editor_launcher,
-        exercise_uuid=uuid,
-        identifier=identifier,
-    )
-
-    application.get_exercise_by_uuid.assert_called_once()
-    application.get_exercise_by_identifier.assert_not_called()
-
-
-def test_edit_ex_env_updates_provided_fields() -> None:
-    uuid = uuid7()
-    application = Mock()
-    application.is_valid_idenfifier.return_value = True
-    application.identifier_exists.return_value = False
-
-    def fake_get_exercise_by_uuid(uuid: UUID) -> Exercise:
-        return Exercise(
-            uuid=uuid,
-            identifier="old_identifier",
-            prompt="old_prompt",
-            answer="old_answer",
-        )
-
-    application.get_exercise_by_uuid.side_effect = Mock(
-        side_effect=fake_get_exercise_by_uuid
-    )
-
-    def fake_identifier_prompt(msg: str, identifier: str | None) -> str | None:
-        return "new_identifier"
-
-    def fake_editor_launcher(
-        field_name: str,
-        context: dict[str, str],
-        initial_field_value: str | None,
-    ) -> str | None:
-        return f"new {field_name}"
-
-    _edit_exercise_env_editor(
-        application,
-        fake_identifier_prompt,
-        fake_editor_launcher,
-        uuid,
-    )
-
-    application.get_exercise_by_uuid.assert_called_once()
-    application.update_exercise.assert_called_once_with(
-        Exercise(
-            uuid=uuid,
-            identifier="new_identifier",
-            prompt="new prompt",
-            answer="new answer",
-        )
-    )
-
-
-def test_edit_exercise_in_env_editor_raises_if_identifier_already_exists() -> None:
-
-    connection = initialize()
-    application = ExerciseApplication(
-        ExerciseRepository(connection),
-        MediaRepository(connection),
-        ReviewRepository(connection),
-    )
+def test_edit_exercise_in_env_editor_raises_if_identifier_already_exists(
+    application: ExerciseApplication,
+) -> None:
     exercise_uuid = application.add_exercise(
         prompt="prompt1",
         answer="answer1",
         identifier="exercise1",
     )
 
-    exercise2_uuid = application.add_exercise(
-        prompt="prompt2", answer="answer2", identifier="exercise2"
-    )
+    application.add_exercise(prompt="prompt2", answer="answer2", identifier="exercise2")
 
     assert exercise_uuid is not None
-    assert exercise2_uuid is not None
 
     editor_launcher = Mock()
 
@@ -359,18 +163,13 @@ def test_edit_exercise_in_env_editor_raises_if_identifier_already_exists() -> No
             application,
             identifier_prompt,
             editor_launcher,
-            exercise_uuid=exercise_uuid,
+            selector=str(exercise_uuid),
         )
 
 
-def test_edit_exercise_in_env_editor_raises_if_identifier_is_invalid() -> None:
-
-    connection = initialize()
-    application = ExerciseApplication(
-        ExerciseRepository(connection),
-        MediaRepository(connection),
-        ReviewRepository(connection),
-    )
+def test_edit_exercise_in_env_editor_raises_if_identifier_is_invalid(
+    application: ExerciseApplication,
+) -> None:
     exercise_uuid = application.add_exercise(
         prompt="prompt1",
         answer="answer1",
@@ -392,17 +191,13 @@ def test_edit_exercise_in_env_editor_raises_if_identifier_is_invalid() -> None:
             application,
             fake_identifier_prompt,
             editor_launcher,
-            exercise_uuid=exercise_uuid,
+            selector=str(exercise_uuid),
         )
 
 
-def test_edit_exercise_in_env_editor_do_not_raise_if_same_identifier_provided() -> None:
-    connection = initialize()
-    application = ExerciseApplication(
-        ExerciseRepository(connection),
-        MediaRepository(connection),
-        ReviewRepository(connection),
-    )
+def test_edit_exercise_in_env_editor_do_not_raise_if_same_identifier_provided(
+    application: ExerciseApplication,
+) -> None:
     exercise_uuid = application.add_exercise(
         prompt="prompt1",
         answer="answer1",
@@ -411,19 +206,12 @@ def test_edit_exercise_in_env_editor_do_not_raise_if_same_identifier_provided() 
 
     assert exercise_uuid is not None
 
-    def fake_editor_launcher(
-        field_name: str,
-        context: dict[str, str],
-        field_previous_content: str | None,
-    ) -> str | None:
-        return "some content"
-
     def fake_identifier_prompt(msg: str, identifier: str | None) -> str | None:
         return "exercise1"
 
     _edit_exercise_env_editor(
         application,
         fake_identifier_prompt,
-        fake_editor_launcher,
-        exercise_uuid=exercise_uuid,
+        _fake_editor_launcher,
+        selector=str(exercise_uuid),
     )

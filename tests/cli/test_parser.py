@@ -338,7 +338,7 @@ def test_unknown_command(
 # ------------------------------------------------------------------------------
 # Edit command
 # ------------------------------------------------------------------------------
-def test_edit_command_requires_uuid_or_identifier(
+def test_edit_command_requires_selector(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
@@ -348,10 +348,20 @@ def test_edit_command_requires_uuid_or_identifier(
 
     captured = capsys.readouterr()
 
-    assert "at least 'uuid' or 'identifier' must be provided." in captured.err
+    assert "edit: error: the following arguments are required: selector" in (
+        captured.err
+    )
+
+    args = Parser().get_args(["edit", "identifier", "--new-prompt", "new prompt"])
+    assert args.selector == "identifier"
+
+    uuid = uuid7()
+
+    args = Parser().get_args(["edit", str(uuid), "--new-prompt", "new prompt"])
+    assert args.selector == str(uuid)
 
 
-def test_edit_command_raise_if_no_new_field_is_provided(
+def test_edit_command_rejects_old_selector_flags(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit) as exc_info:
@@ -359,25 +369,45 @@ def test_edit_command_raise_if_no_new_field_is_provided(
 
     assert exc_info.value.code == 2
 
+    captured = capsys.readouterr()
+
+    assert "unrecognized arguments: -I" in captured.err
+
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["edit", "--uuid", str(uuid7())])
+
+    assert exc_info.value.code == 2
+
+    assert "unrecognized arguments: --uuid" in capsys.readouterr().err
+
+
+def test_edit_command_raise_if_no_new_field_is_provided(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        Parser().get_args(["edit", "identifier"])
+
+    assert exc_info.value.code == 2
+
+    captured = capsys.readouterr()
+
     assert (
         "Please provide at least one of: "
         + "'new prompt', 'new answer', or 'new identifier'."
-    )
+    ) in captured.err
 
 
 def test_edit_command_turns_non_provided_args_into_none() -> None:
     args = Parser().get_args(
         [
             "edit",
-            "--uuid",
             "uuid",
             "--new-prompt",
             "new prompt",
         ]
     )
 
-    assert args.uuid == "uuid"
-    assert args.identifier is None
+    assert args.selector == "uuid"
     assert args.new_prompt == "new prompt"
     assert args.new_answer is None
     assert args.new_identifier is None
@@ -385,15 +415,13 @@ def test_edit_command_turns_non_provided_args_into_none() -> None:
     args = Parser().get_args(
         [
             "edit",
-            "--identifier",
             "identifier",
             "--new-answer",
             "new answer",
         ]
     )
 
-    assert args.uuid is None
-    assert args.identifier == "identifier"
+    assert args.selector == "identifier"
     assert args.new_prompt is None
     assert args.new_answer == "new answer"
     assert args.new_identifier is None
@@ -403,9 +431,6 @@ def test_edit_command_gets_args() -> None:
     args = Parser().get_args(
         [
             "edit",
-            "--uuid",
-            "uuid",
-            "-I",
             "identifier",
             "--new-prompt",
             "new prompt",
@@ -416,8 +441,7 @@ def test_edit_command_gets_args() -> None:
         ]
     )
 
-    assert args.uuid == "uuid"
-    assert args.identifier == "identifier"
+    assert args.selector == "identifier"
     assert args.new_prompt == "new prompt"
     assert args.new_answer == "new answer"
     assert args.new_identifier == "new-identifier"
@@ -427,11 +451,8 @@ def test_edit_command_interactive_ignores_new_content_cli_args() -> None:
     args = Parser().get_args(
         [
             "edit",
-            "--interactive",
-            "-I",
             "identifier",
-            "--uuid",
-            "uuid",
+            "--interactive",
             "--new-prompt",
             "new prompt",
             "--new-answer",
@@ -442,8 +463,7 @@ def test_edit_command_interactive_ignores_new_content_cli_args() -> None:
     )
 
     assert args.interactive
-    assert args.identifier == "identifier"
-    assert args.uuid == "uuid"
+    assert args.selector == "identifier"
     assert args.new_prompt is None
     assert args.new_answer is None
     assert args.new_identifier is None
