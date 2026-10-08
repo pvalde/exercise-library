@@ -86,6 +86,21 @@ class Parser:
             help="Browse exercises under this identifier prefix",
         )
 
+        self._browse_parser.add_argument(
+            "--status",
+            choices=["all", "new", "reviewed"],
+            default="all",
+            help="Filter by review status (default: all)",
+        )
+
+        self._browse_parser.add_argument(
+            "--show",
+            action="append",
+            choices=["status"],
+            default=[],
+            help="Extra columns to show (repeatable; currently: status)",
+        )
+
         # ----------------------------------------------------------------------
         # Backup command
         # ----------------------------------------------------------------------

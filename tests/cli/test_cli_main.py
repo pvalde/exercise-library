@@ -151,6 +151,40 @@ def test_add_then_browse(
     assert "(no identifier)" in captured.out
 
 
+def test_browse_filters_by_review_status(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_main(
+        monkeypatch,
+        "add",
+        "What is Python?",
+        "A programming language.",
+        "--identifier",
+        "seen",
+    )
+    capsys.readouterr()
+
+    assert run_main(monkeypatch, "rate", "seen", "good") == 0
+    capsys.readouterr()
+
+    assert (
+        run_main(monkeypatch, "browse", "--status", "reviewed", "--show", "status") == 0
+    )
+
+    reviewed_output = capsys.readouterr().out
+
+    assert "seen" in reviewed_output
+    assert "reviewed" in reviewed_output
+
+    assert run_main(monkeypatch, "browse", "--status", "new", "--show", "status") == 0
+
+    captured = capsys.readouterr()
+
+    assert captured.out == "No exercises found.\n"
+    assert captured.err == ""
+
+
 def test_identifiers_command(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

@@ -172,6 +172,8 @@ def test_browse(
 
     assert args.command == "browse"
     assert args.identifier is None
+    assert args.status == "all"
+    assert args.show == []
 
 
 def test_browse_with_identifier() -> None:
@@ -186,6 +188,45 @@ def test_browse_with_identifier() -> None:
 
     assert args.command == "browse"
     assert args.identifier == "math"
+
+
+def test_browse_with_status() -> None:
+
+    args = Parser().get_args(
+        [
+            "browse",
+            "--status",
+            "reviewed",
+        ]
+    )
+
+    assert args.command == "browse"
+    assert args.identifier is None
+    assert args.status == "reviewed"
+
+
+def test_browse_rejects_invalid_status() -> None:
+    with pytest.raises(SystemExit):
+        Parser().get_args(["browse", "--status", "bogus"])
+
+
+def test_browse_with_show_status() -> None:
+    args = Parser().get_args(
+        [
+            "browse",
+            "--show",
+            "status",
+        ]
+    )
+
+    assert args.command == "browse"
+    assert args.status == "all"
+    assert args.show == ["status"]
+
+
+def test_browse_rejects_invalid_show() -> None:
+    with pytest.raises(SystemExit):
+        Parser().get_args(["browse", "--show", "bogus"])
 
 
 def test_backup_with_file() -> None:

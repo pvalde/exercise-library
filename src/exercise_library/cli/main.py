@@ -83,7 +83,12 @@ def main() -> int:
             print("Exercise was successfully added to the library.")
 
         elif args.command == "browse":
-            browse_exercises(application, args.identifier)
+            browse_exercises(
+                application,
+                args.identifier,
+                status=ReviewStatus(args.status),
+                show=args.show,
+            )
 
         elif args.command == "backup":
             output = application.backup_data(args.output)

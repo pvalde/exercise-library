@@ -5,7 +5,7 @@ import pytest
 
 from exercise_library.application import ExerciseApplication
 from exercise_library.cli.browse_command import browse_exercises
-from exercise_library.models import Exercise
+from exercise_library.models import Exercise, ReviewStatus
 
 
 def test_browse_exercises_prints_no_exercises_message(
@@ -135,3 +135,70 @@ def test_browse_exercises_preserves_multiline_content(
 
     assert "Line one" in output
     assert "Line two" not in output
+
+
+def test_browse_exercises_hides_status_column_by_default(
+    application: ExerciseApplication,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    application.repository.add(Exercise(prompt="First prompt", answer="a"))
+
+    browse_exercises(application, None)
+
+    lines = capsys.readouterr().out.splitlines()
+
+    assert lines[0].split() == ["UUID", "IDENTIFIER", "PROMPT"]
+
+
+def test_browse_exercises_shows_status_column(
+    application: ExerciseApplication,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    new_uuid = application.repository.add(Exercise(prompt="First prompt", answer="a"))
+    seen_uuid = application.repository.add(Exercise(prompt="Second prompt", answer="a"))
+    application.record_review(seen_uuid, "good")
+
+    browse_exercises(application, None, show=("status",))
+
+    lines = capsys.readouterr().out.splitlines()
+
+    assert lines[0].split() == ["UUID", "IDENTIFIER", "STATUS", "PROMPT"]
+
+    data_rows = lines[2:]
+    new_row = next(line for line in data_rows if str(new_uuid) in line)
+    seen_row = next(line for line in data_rows if str(seen_uuid) in line)
+
+    assert "new" in new_row
+    assert "reviewed" in seen_row
+
+
+def test_browse_exercises_filters_reviewed(
+    application: ExerciseApplication,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    new_uuid = application.repository.add(Exercise(prompt="First prompt", answer="a"))
+    seen_uuid = application.repository.add(Exercise(prompt="Second prompt", answer="a"))
+    application.record_review(seen_uuid, "good")
+
+    browse_exercises(application, None, status=ReviewStatus.REVIEWED)
+
+    output = capsys.readouterr().out
+
+    assert str(seen_uuid) in output
+    assert str(new_uuid) not in output
+
+
+def test_browse_exercises_filters_new(
+    application: ExerciseApplication,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    new_uuid = application.repository.add(Exercise(prompt="First prompt", answer="a"))
+    seen_uuid = application.repository.add(Exercise(prompt="Second prompt", answer="a"))
+    application.record_review(seen_uuid, "good")
+
+    browse_exercises(application, None, status=ReviewStatus.NEW)
+
+    output = capsys.readouterr().out
+
+    assert str(new_uuid) in output
+    assert str(seen_uuid) not in output
